@@ -35,6 +35,7 @@ require "Source"
 require "SourcePos"
 require "SourceRange"
 local dedent = require "lib.dedent"
+local pprint = require "lib.pprint"
 
 local src = [[
 
@@ -46,7 +47,7 @@ end :)
 ]]
 
 local source = Source.New(src)
-local sourcePos = SourcePos.New(source, 3, 5)
+local sourcePos = SourcePos.New(3, 5)
 -- print(sourcePos:ToString(dedent [[
 --     long message
 --     with long
@@ -54,9 +55,9 @@ local sourcePos = SourcePos.New(source, 3, 5)
 -- -- ]]))
 -- print(sourcePos:ToString())
 
-local startSourcePos = SourcePos.New(source, 2, 5)
-local endSourcePos = SourcePos.New(source, 5, 4)
+local startSourcePos = SourcePos.New(2, 5)
+local endSourcePos = SourcePos.New(5, 4)
 local sourceRange = SourceRange.New(startSourcePos, endSourcePos)
-print(sourceRange:ToString("message"))
+print(sourceRange:ToString(source, "message\n1\n2\n3\nabc\ndef"))
 
 -- Lex("test")

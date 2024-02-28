@@ -1,4 +1,5 @@
 local dedent = require "lib.dedent"
+local pprint = require "lib.pprint"
 
 ---@class SourceRange
 ---@field StartPos SourcePos
@@ -38,36 +39,50 @@ end
 ]]
 --TODO: split message
 ---@nodiscard
+---@param source Source
 ---@param msg string?
 ---@return string
-function SourceRange:ToString(msg)
+function SourceRange:ToString(source, msg)
     local str = ""
+
+    local startLineNumber = self.StartPos.LineNumber
+    local endLineNumber = self.EndPos.LineNumber
+
+    local msgs = {}
+    if msg then
+        for line in msg:gmatch("[^\n]*") do
+            table.insert(msgs, line)
+        end
+    end
+    local nextMsgIndex = 1
+    local function getNextMsg()
+        nextMsgIndex = nextMsgIndex + 1
+        return msgs[nextMsgIndex - 1]
+    end
 
     -- start
     local startEndColumn = math.huge
-    if self.EndPos.LineNumber == self.StartPos.LineNumber then
+    if endLineNumber == startLineNumber then
         startEndColumn = self.EndPos.Column
     end
-    str = str .. self.StartPos:ToString(msg, startEndColumn)
+    str = str .. self.StartPos:ToString(source, getNextMsg(), startEndColumn)
 
     -- middle
-    for lineNumber = self.StartPos.LineNumber + 1, self.EndPos.LineNumber - 1 do
-        local sourcePos = SourcePos.New(
-            self.StartPos.Source,
-            lineNumber,
-            1
-        )
-        str = str .. '\n' .. sourcePos:ToString(msg, math.huge, '~')
+    for lineNumber = startLineNumber + 1, endLineNumber - 1 do
+        local sourcePos = SourcePos.New(lineNumber, 1)
+        str = str .. '\n' .. sourcePos:ToString(source, getNextMsg(), math.huge, '~')
     end
 
     -- end
-    if self.EndPos.LineNumber ~= self.StartPos.LineNumber then
-        local endPos = SourcePos.New(
-            self.EndPos.Source,
-            self.EndPos.LineNumber,
-            1
-        )
-        str = str .. '\n' .. endPos:ToString(msg, self.EndPos.Column, '~')
+    if endLineNumber ~= startLineNumber then
+        local endPos = SourcePos.New(endLineNumber, 1)
+        local endMsg = getNextMsg()
+        while true do
+            local nextMsg = getNextMsg()
+            if not nextMsg then break end
+            endMsg = endMsg .. '\n' .. nextMsg
+        end
+        str = str .. '\n' .. endPos:ToString(source, endMsg, self.EndPos.Column, '~')
     end
 
     return str

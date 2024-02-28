@@ -1,7 +1,6 @@
 local dedent = require "lib.dedent"
 
 ---@class SourcePos
----@field Source Source
 ---@field LineNumber integer
 ---@field Column integer
 SourcePos = {}
@@ -31,22 +30,19 @@ function SourcePos.FromIndex(source, index)
 
     ---@type SourcePos
     return setmetatable({
-        Source = source;
         LineNumber = finalLineNumber;
         Column = finalColumn;
     }, SourcePos)
 end
 
 ---@nodiscard
----@param src Source
 ---@param lineNumber integer
 ---@param column integer
-function SourcePos.New(src, lineNumber, column)
+function SourcePos.New(lineNumber, column)
     assert(lineNumber >= 1)
     assert(column >= 1)
     ---@type SourcePos
     return setmetatable({
-        Source = src;
         LineNumber = lineNumber;
         Column = column;
     }, SourcePos)
@@ -60,19 +56,20 @@ end
       |       lines
 ]]
 ---@nodiscard
+---@param source Source
 ---@param msg string?
 ---@param endColumnIndex integer?
 ---@param pointerChar string?
 ---@return string
-function SourcePos:ToString(msg, endColumnIndex, pointerChar)
+function SourcePos:ToString(source, msg, endColumnIndex, pointerChar)
     endColumnIndex = endColumnIndex or self.Column
     pointerChar = pointerChar or '^'
 
-    endColumnIndex = math.min(endColumnIndex, self.Source:GetColumnCount(self.LineNumber))
+    endColumnIndex = math.min(endColumnIndex, source:GetColumnCount(self.LineNumber))
 
     local lineNumberLen = #tostring(self.LineNumber)
     local prefixSpaces = (" "):rep(lineNumberLen)
-    local sourceLine = self.Source:GetLine(self.LineNumber)
+    local sourceLine = source:GetLine(self.LineNumber)
 
     local str = string.format(
         "%d | %s",
