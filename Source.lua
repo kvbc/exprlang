@@ -5,6 +5,7 @@
 ---@field String string
 ---@field LineIndices LineIndices
 Source = {}
+Source.__index = Source
 
 ---@nodiscard
 ---@param string string
@@ -34,8 +35,25 @@ function Source.New(string)
     end
 
     ---@type Source
-    return {
+    return setmetatable({
         String = string;
         LineIndices = lineIndices;
-    }
+    }, Source)
+end
+
+---@nodiscard
+---@param lineNumber integer
+function Source:GetLine(lineNumber)
+    assert(lineNumber >= 1)
+    local lineIndices = self.LineIndices[lineNumber]
+    return self.String:sub(lineIndices.StartIndex, lineIndices.EndIndex)
+end
+
+---@nodiscard
+---@param lineNumber integer
+---@return integer
+function Source:GetColumnCount(lineNumber)
+    assert(lineNumber >= 1)
+    local lineIndices = self.LineIndices[lineNumber]
+    return lineIndices.EndIndex - lineIndices.StartIndex + 1
 end

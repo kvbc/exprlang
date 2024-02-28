@@ -31,16 +31,32 @@ main := ([] => []){
 ]]
 
 require "lex"
+require "Source"
+require "SourcePos"
+require "SourceRange"
+local dedent = require "lib.dedent"
 
-local function test(str)
-    return function()
-        print(str)
-    end
-end
+local src = [[
 
-local x = "123"
-local f = test(x)
-x = "456"
-f()
+this is my source code
+and this is mid
+hello !
+end :)
+
+]]
+
+local source = Source.New(src)
+local sourcePos = SourcePos.New(source, 3, 5)
+-- print(sourcePos:ToString(dedent [[
+--     long message
+--     with long
+--     multiple lines
+-- -- ]]))
+-- print(sourcePos:ToString())
+
+local startSourcePos = SourcePos.New(source, 2, 5)
+local endSourcePos = SourcePos.New(source, 5, 4)
+local sourceRange = SourceRange.New(startSourcePos, endSourcePos)
+print(sourceRange:ToString("message"))
 
 -- Lex("test")
