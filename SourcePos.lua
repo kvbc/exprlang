@@ -16,10 +16,14 @@ function SourcePos.FromIndex(source, index)
     local finalColumn = 0
 
     for lineNumber, lineIndices in pairs(source.LineIndices) do
-        if index >= lineIndices.StartIndex and index <= lineIndices.EndIndex then
+        -- if index >= lineIndices.StartIndex and index <= source.LineIndices[lineNumber + 1].EndIndex then
+        --     finalLineNumber = lineNumber
+        --     finalColumn = index - lineIndices.StartIndex + 1
+        --     break
+        -- end
+        if index >= lineIndices.StartIndex then
             finalLineNumber = lineNumber
             finalColumn = index - lineIndices.StartIndex + 1
-            break
         end
     end
 

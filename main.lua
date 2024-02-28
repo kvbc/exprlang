@@ -30,7 +30,7 @@ main := ([] => []){
 
 ]]
 
-require "lex"
+require "Lexer"
 require "Source"
 require "SourcePos"
 require "SourceRange"
@@ -43,6 +43,18 @@ this is my source code
 and this is mid
 hello !
 end :)
+345.5633.34
+
+~=
+==
+
+replace
+
+>=
+
+"this ia test test"
+
+"unclosed :(
 
 ]]
 
@@ -59,5 +71,13 @@ local startSourcePos = SourcePos.New(2, 5)
 local endSourcePos = SourcePos.New(5, 4)
 local sourceRange = SourceRange.New(startSourcePos, endSourcePos)
 print(sourceRange:ToString(source, "message\n1\n2\n3\nabc\ndef"))
+
+local lexer = Lexer.New(source)
+local tokens = lexer:Lex()
+print('\nErrors\n')
+lexer:PrintErrors()
+print('\nTokens\n')
+-- lexer:PrintTokens(tokens)
+lexer:PrintTokensCompact(tokens)
 
 -- Lex("test")

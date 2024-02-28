@@ -9,13 +9,14 @@ SourceRange.__index = SourceRange
 
 ---@nodiscard
 ---@param startPos SourcePos
----@param endPos SourcePos
+---@param endPos SourcePos?
 function SourceRange.New(startPos, endPos)
     ---@type SourceRange
-    return setmetatable({
+    local sourceRange = {
         StartPos = startPos;
-        EndPos = endPos;
-    }, SourceRange)
+        EndPos = endPos or startPos;
+    }
+    return setmetatable(sourceRange, SourceRange)
 end
 
 --[[
