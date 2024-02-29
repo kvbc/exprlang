@@ -1,14 +1,18 @@
+local pprint = require "lib.pprint"
+
 require "ast.ASTNode"
 require "ast.ASTNodeExpr"
 require "ast.ASTNodeExprBlock"
 require "ast.ASTNodeExprName"
 require "ast.ASTNodeExprDef"
+require "ast.ASTNodeExprCall"
 require "ast.ASTNodeType"
 require "ast.ASTNodeTypeStruct"
 require "ast.ASTNodeTypeFunction"
 require "ast.ASTNodeExprLiteral"
 require "ast.ASTNodeExprLiteralNumber"
 require "ast.ASTNodeExprLiteralString"
+require "ast.ASTNodeExprLiteralStruct"
 
 ---@class Parser
 ---@field private source Source
@@ -62,6 +66,30 @@ function Parser:error(message)
     table.insert(self.Errors, message)
 end
 
+---@private
+---@param parseFunc fun(error: fun(message: string)): any
+function Parser:backtrack(parseFunc)
+    local prevTokenIndex = self.tokenIndex
+    local newErrors = {}
+
+    ---@param message string
+    local function errorFunc(message)
+        table.insert(newErrors, message)
+    end
+    
+    local ret = parseFunc(errorFunc)
+    if ret == nil then
+        -- backtrack
+        self.tokenIndex = prevTokenIndex
+    else
+        for _,error in ipairs(newErrors) do
+            table.insert(self.Errors, error)
+        end
+    end
+    
+    return ret
+end
+
 --[[
     name
     { ... }
@@ -70,16 +98,19 @@ end
 ---@nodiscard
 ---@return ASTNodeExpr?
 function Parser:tryParseExpr()
+    ---@type ASTNodeExpr?
+    local expr = nil
     local token = self:token()
     if token and token.Type == 'name' then
         self:advance()
         local name = token.Value
-        local expr = self:tryParseExprDef(name)
-        if expr then return expr end
-        return ASTNodeExprName.New(name)
+        expr = self:tryParseExprDef(name) or ASTNodeExprName.New(name)
+    else
+        expr = self:tryParseExprBlock() or self:tryParseExprLiteral()
     end
-    return self:tryParseExprBlock()
-        or self:tryParseExprLiteral()
+    if expr then
+        return self:tryParseExprCall(expr) or expr
+    end
 end
 
 ---@private
@@ -124,29 +155,77 @@ end
 ---@nodiscard
 ---@return ASTNodeExprDef?
 function Parser:tryParseExprDef(name)
-    ---@type ASTNodeType?
-    local type = nil
-
-    if self:token():Is(':=') then
-        self:advance()
-        type = ASTNodeType.New('auto')
-    else
-        type = self:tryParseType()
-        if type then
-            if self:token():Is('=') then
-                self:advance()                
-            else
-                self:error(self:token().SourceRange:ToString(self.source, 'Expected "="'))
+    return self:backtrack(function(error)
+        ---@type ASTNodeType?
+        local type = nil
+    
+        if self:token():Is(':=') then
+            self:advance()
+            type = ASTNodeType.New('auto')
+        else
+            type = self:tryParseType()
+            if type then
+                if self:token():Is('=') then
+                    self:advance()                
+                else
+                    error(self:token().SourceRange:ToString(self.source, 'Expected "="'))
+                end
             end
         end
-    end
-    
-    if type then
-        local expr = self:tryParseExpr()
-        if expr then
-            return ASTNodeExprDef.New(name, type, expr)
+        
+        if type then
+            local expr = self:tryParseExpr()
+            if expr then
+                return ASTNodeExprDef.New(name, type, expr)
+            else
+                error(self:token().SourceRange:ToString(self.source, 'Expected expression'))
+            end
+        end
+    end)
+end
+
+--[[
+    [1, 2, 3]
+--]]
+---@private
+---@nodiscard
+---@return ASTNodeExprLiteralStruct?
+function Parser:tryParseExprLiteralStruct()
+    if self:token():Is('[') then
+        local startToken = self:token()
+        assert(startToken)
+
+        self:advance()
+
+        ---@type ASTNodeExpr[]
+        local exprs = {}
+        while true do
+            if self:token():Is(']') then
+                break
+            end
+            if #exprs > 0 then
+                if not (self:token():Is(',') or self:token():Is(';')) then
+                    local err = self:token().SourceRange:ToString(self.source, 'Expected separator <,> or <;>')
+                    err = err .. '\n' .. startToken.SourceRange:ToString(self.source, 'For "["')
+                    self:error(err)
+                end
+                self:advance()
+            end
+            local expr = self:tryParseExpr()
+            if expr then
+                table.insert(exprs, expr)
+            else
+                break
+            end
+        end
+
+        if self:token():Is(']') then
+            self:advance()
+            return ASTNodeExprLiteralStruct.New(exprs)
         else
-            self:error(self:token().SourceRange:ToString(self.source, 'Expected expression'))
+            local err = self:token().SourceRange:ToString(self.source, 'Expected closing bracket "]"')
+            err = err .. '\n' .. startToken.SourceRange:ToString(self.source, 'For "["')
+            self:error(err)
         end
     end
 end
@@ -154,6 +233,7 @@ end
 --[[
     123
     "text"
+    [1, 2, 3]
 --]]
 ---@private
 ---@nodiscard
@@ -168,6 +248,22 @@ function Parser:tryParseExprLiteral()
             self:advance()
             return ASTNodeExprLiteralString.New(token.Value)
         end
+        return self:tryParseExprLiteralStruct()
+    end
+end
+
+--[[
+    abc[1, 2; 3]
+--]]
+---@private
+---@nodiscard
+---@param func ASTNodeExpr
+---@return ASTNodeExprCall?
+function Parser:tryParseExprCall(func)
+    -- self:error(self:token().SourceRange:ToString(self.source, 'hier'))
+    local args = self:tryParseExprLiteralStruct()
+    if args then
+        return ASTNodeExprCall.New(func, args)
     end
 end
 

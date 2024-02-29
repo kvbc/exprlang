@@ -38,11 +38,11 @@ require "SourceRange"
 local dedent = require "lib.dedent"
 local pprint = require "lib.pprint"
 
+-- func [num] -> num = { a }
 local src = [[
 
 {
-    
-    x [num, num] -> [num] = 3
+    func[a, a]
 }
 
 this is my source code
