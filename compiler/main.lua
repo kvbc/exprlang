@@ -43,7 +43,7 @@ local pprint = require "lib.pprint"
 -- func [num] -> num = { a }
 local src = [[
 
-test := fun [num] -> num {
+test := fun {
     print["testing!"]
 }
 test[]

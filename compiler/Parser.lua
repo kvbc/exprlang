@@ -98,10 +98,9 @@ function Parser:backtrack(parseFunc)
     if ret == nil then
         -- backtrack
         self.tokenIndex = prevTokenIndex
-    else
-        for _,error in ipairs(newErrors) do
-            table.insert(self.Errors, error)
-        end
+    end
+    for _,error in ipairs(newErrors) do
+        table.insert(self.Errors, error)
     end
     
     return ret
@@ -315,11 +314,6 @@ function Parser:tryParseExprFun()
         self:advance()
 
         local funcType = self:tryParseTypeFunction()
-        if not funcType then
-            error(self:sourceRange():ToString(self.source, 'Expected function type'))
-            return
-        end
-
         local funcBody = self:tryParseExprBlock()
         if not funcBody then
             error(self:sourceRange():ToString(self.source, 'Expected function body'))

@@ -1,11 +1,11 @@
 ---@class ASTNodeExprFun : ASTNodeExpr
----@field FunctionType ASTNodeTypeFunction
+---@field FunctionType ASTNodeTypeFunction?
 ---@field FunctionBody ASTNodeExprBlock
 ASTNodeExprFun = {}
 ASTNodeExprFun.__index = ASTNodeExprFun
 
 ---@nodiscard
----@param functionType ASTNodeTypeFunction
+---@param functionType ASTNodeTypeFunction?
 ---@param functionBody ASTNodeExprBlock
 ---@return ASTNodeExprFun
 function ASTNodeExprFun.New(functionType, functionBody)
