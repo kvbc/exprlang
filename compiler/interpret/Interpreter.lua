@@ -1,5 +1,7 @@
 -- Simple AST Walker for testing purposes
 
+local pprint = require "lib.pprint"
+
 require "interpret.Scope"
 require "interpret.Variable"
 
@@ -20,6 +22,14 @@ function Interpreter.New(astExprBlock)
         Errors = {};
         GlobalScope = Scope.New()
     }
+
+    table.insert(
+        interpreter.GlobalScope.Variables,
+        Variable.New("print", function(...)
+            io.write("> ", pprint.pformat(...), '\n')
+        end)
+    )
+
     return setmetatable(interpreter, Interpreter)
 end
 

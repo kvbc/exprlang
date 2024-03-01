@@ -91,12 +91,6 @@ pprint(ast)
 
 if ast then
     local interpreter = Interpreter.New(ast)
-    table.insert(
-        interpreter.GlobalScope.Variables,
-        Variable.New("print", function(...)
-            io.write("> ", pprint.pformat(...), '\n')
-        end)
-    )
     print('\nInterpret Result\n')
     interpreter:Interpret()
     print('\nInterpret Errors\n')
