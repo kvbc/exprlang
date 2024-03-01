@@ -13,6 +13,7 @@ require "ast.ASTNodeExprLiteral"
 require "ast.ASTNodeExprLiteralNumber"
 require "ast.ASTNodeExprLiteralString"
 require "ast.ASTNodeExprLiteralStruct"
+require "ast.ASTNodeExprFun"
 
 ---@class Parser
 ---@field private source Source
@@ -52,6 +53,20 @@ function Parser:token(offset)
     if index <= #self.tokens then
         return self.tokens[index]
     end
+end
+
+---@private
+---@nodiscard
+---@return SourceRange
+function Parser:sourceRange()
+    local token = self:token()
+    if token then
+        return token.SourceRange
+    end
+    local lastLn = #self.source.LineIndices
+    local lastCol = self.source:GetColumnCount(lastLn)
+    local lastSourcePos = SourcePos.New(lastLn, lastCol)
+    return SourceRange.New(lastSourcePos)
 end
 
 ---@private
@@ -109,7 +124,9 @@ function Parser:tryParseExpr()
             local name = token.Value
             expr = self:tryParseExprDef(name) or ASTNodeExprName.New(name)
         else
-            expr = self:tryParseExprBlock() or self:tryParseExprLiteral()
+            expr = self:tryParseExprBlock()
+                or self:tryParseExprLiteral()
+                or self:tryParseExprFun()
         end
         if expr then
             return self:tryParseExprCall(expr) or expr
@@ -148,7 +165,7 @@ function Parser:tryParseExprBlock(omitBrackets)
                 end
                 return ASTNodeExprBlock.New(expressions)
             else
-                local err = self:token().SourceRange:ToString(self.source, 'Expected closing bracket "}"')
+                local err = self:sourceRange():ToString(self.source, 'Expected closing bracket "}"')
                 err = err .. '\n' .. startToken.SourceRange:ToString(self.source, 'For "{"')
                 error(err)
             end
@@ -178,7 +195,7 @@ function Parser:tryParseExprDef(name)
                 if self:isToken('=') then
                     self:advance()                
                 else
-                    error(self:token().SourceRange:ToString(self.source, 'Expected "="'))
+                    error(self:sourceRange():ToString(self.source, 'Expected "="'))
                 end
             end
         end
@@ -188,7 +205,7 @@ function Parser:tryParseExprDef(name)
             if expr then
                 return ASTNodeExprDef.New(name, type, expr)
             else
-                error(self:token().SourceRange:ToString(self.source, 'Expected expression'))
+                error(self:sourceRange():ToString(self.source, 'Expected expression'))
             end
         end
     end)
@@ -216,7 +233,7 @@ function Parser:tryParseExprLiteralStruct()
                 end
                 if #exprs > 0 then
                     if not (self:isToken(',') or self:isToken(';')) then
-                        local err = self:token().SourceRange:ToString(self.source, 'Expected separator <,> or <;>')
+                        local err = self:sourceRange():ToString(self.source, 'Expected separator <,> or <;>')
                         err = err .. '\n' .. startToken.SourceRange:ToString(self.source, 'For "["')
                         error(err)
                     end
@@ -234,7 +251,7 @@ function Parser:tryParseExprLiteralStruct()
                 self:advance()
                 return ASTNodeExprLiteralStruct.New(exprs)
             else
-                local err = self:token().SourceRange:ToString(self.source, 'Expected closing bracket "]"')
+                local err = self:sourceRange():ToString(self.source, 'Expected closing bracket "]"')
                 err = err .. '\n' .. startToken.SourceRange:ToString(self.source, 'For "["')
                 error(err)
             end
@@ -275,11 +292,41 @@ end
 ---@return ASTNodeExprCall?
 function Parser:tryParseExprCall(func)
     return self:backtrack(function(error)
-        -- self:error(self:token().SourceRange:ToString(self.source, 'hier'))
+        -- self:error(self:sourceRange():ToString(self.source, 'hier'))
         local args = self:tryParseExprLiteralStruct()
         if args then
             return ASTNodeExprCall.New(func, args)
         end
+    end)
+end
+
+--[[
+    fun [num] -> num { 3 + 5 }
+--]]
+---@private
+---@nodiscard
+---@return ASTNodeExprFun?
+function Parser:tryParseExprFun()
+    return self:backtrack(function(error)
+        if not self:isToken('fun') then
+            return
+        end
+
+        self:advance()
+
+        local funcType = self:tryParseTypeFunction()
+        if not funcType then
+            error(self:sourceRange():ToString(self.source, 'Expected function type'))
+            return
+        end
+
+        local funcBody = self:tryParseExprBlock()
+        if not funcBody then
+            error(self:sourceRange():ToString(self.source, 'Expected function body'))
+            return
+        end
+
+        return ASTNodeExprFun.New(funcType, funcBody)
     end)
 end
 
@@ -331,7 +378,7 @@ function Parser:tryParseTypeStruct()
                 end
                 if #fields > 0 then
                     if not (self:isToken(',') or self:isToken(';')) then
-                        local err = self:token().SourceRange:ToString(self.source, 'Expected separator <,> or <;>')
+                        local err = self:sourceRange():ToString(self.source, 'Expected separator <,> or <;>')
                         err = err .. '\n' .. startToken.SourceRange:ToString(self.source, 'For "["')
                         error(err)
                     end
@@ -349,7 +396,7 @@ function Parser:tryParseTypeStruct()
                 self:advance()
                 return ASTNodeTypeStruct.New(fields)
             else
-                local err = self:token().SourceRange:ToString(self.source, 'Expected closing bracket "]"')
+                local err = self:sourceRange():ToString(self.source, 'Expected closing bracket "]"')
                 err = err .. '\n' .. startToken.SourceRange:ToString(self.source, 'For "["')
                 error(err)
             end
@@ -381,10 +428,10 @@ function Parser:tryParseTypeFunction(paramsType, mustParse)
             if returnType then
                 return ASTNodeTypeFunction.New(paramsType, returnType)
             else
-                error(self:token().SourceRange:ToString(self.source, 'Expected return type'))
+                error(self:sourceRange():ToString(self.source, 'Expected return type'))
             end
         elseif mustParse then
-            error(self:token().SourceRange:ToString(self.source, 'Expected "->" for function type'))
+            error(self:sourceRange():ToString(self.source, 'Expected "->" for function type'))
         end
     end)
 end

@@ -10,9 +10,8 @@ ASTNodeExprCall.__index = ASTNodeExprCall
 ---@return ASTNodeExprCall
 function ASTNodeExprCall.New(func, args)
     ---@type ASTNodeExprCall
-    local node = {
-        Func = func;
-        Args = args;
-    }
+    local node = ASTNodeExpr.New('Call')
+    node.Func = func;
+    node.Args = args;
     return setmetatable(node, ASTNodeExprCall)
 end

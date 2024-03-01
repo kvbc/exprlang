@@ -12,10 +12,9 @@ ASTNodeExprDef.__index = ASTNodeExprDef
 ---@return ASTNodeExprDef
 function ASTNodeExprDef.New(name, type, expr)
     ---@type ASTNodeExprDef
-    local exprDef = {
-        Name = name;
-        Type = type;
-        Expr = expr;
-    }
-    return setmetatable(exprDef, ASTNodeExprDef)
+    local node = ASTNodeExpr.New('Def')
+    node.Name = name;
+    node.Type = type;
+    node.Expr = expr;
+    return setmetatable(node, ASTNodeExprDef)
 end

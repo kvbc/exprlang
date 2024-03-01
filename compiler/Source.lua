@@ -55,5 +55,6 @@ end
 function Source:GetColumnCount(lineNumber)
     assert(lineNumber >= 1)
     local lineIndices = self.LineIndices[lineNumber]
-    return lineIndices.EndIndex - lineIndices.StartIndex + 1
+    local colCount = lineIndices.EndIndex - lineIndices.StartIndex + 1
+    return math.max(1, colCount)
 end

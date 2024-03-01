@@ -8,8 +8,7 @@ ASTNodeExprBlock.__index = ASTNodeExprBlock
 ---@return ASTNodeExprBlock
 function ASTNodeExprBlock.New(expressions)
     ---@type ASTNodeExprBlock
-    local exprBlock = {
-        Expressions = expressions;
-    }
-    return setmetatable(exprBlock, ASTNodeExprBlock)
+    local node = ASTNodeExpr.New('Block')
+    node.Expressions = expressions
+    return setmetatable(node, ASTNodeExprBlock)
 end

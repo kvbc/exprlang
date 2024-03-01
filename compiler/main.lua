@@ -35,13 +35,18 @@ require "Parser"
 require "Source"
 require "SourcePos"
 require "SourceRange"
+require "interpret.Interpreter"
+require "interpret.Variable" 
 local dedent = require "lib.dedent"
 local pprint = require "lib.pprint"
 
 -- func [num] -> num = { a }
 local src = [[
 
-print["string"]
+test := fun [num] -> num {
+    print["testing!"]
+}
+test[]
 
 ]]
 
@@ -83,3 +88,17 @@ print('\nAST\n')
 pprint(ast)
 
 -- Lex("test")
+
+if ast then
+    local interpreter = Interpreter.New(ast)
+    table.insert(
+        interpreter.GlobalScope.Variables,
+        Variable.New("print", function(...)
+            io.write("> ", pprint.pformat(...), '\n')
+        end)
+    )
+    print('\nInterpret Result\n')
+    interpreter:Interpret()
+    print('\nInterpret Errors\n')
+    printErrors(interpreter.Errors)
+end

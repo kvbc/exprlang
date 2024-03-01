@@ -4,7 +4,7 @@
 ---| 'Struct'
 
 ---@class ASTNodeExprLiteral : ASTNodeExpr
----@field Kind ASTNodeExprLiteralKind
+---@field LiteralKind ASTNodeExprLiteralKind
 ASTNodeExprLiteral = {}
 ASTNodeExprLiteral.__index = ASTNodeExprLiteral
 
@@ -13,8 +13,7 @@ ASTNodeExprLiteral.__index = ASTNodeExprLiteral
 ---@return ASTNodeExprLiteral
 function ASTNodeExprLiteral.New(kind)
     ---@type ASTNodeExprLiteral
-    local node = {
-        Kind = kind
-    }
+    local node = ASTNodeExpr.New('Literal')
+    node.LiteralKind = kind
     return setmetatable(node, ASTNodeExprLiteral)
 end

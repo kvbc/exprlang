@@ -8,8 +8,7 @@ ASTNodeExprName.__index = ASTNodeExprName
 ---@return ASTNodeExprName
 function ASTNodeExprName.New(name)
     ---@type ASTNodeExprName
-    local exprName = {
-        Name = name;
-    }
-    return setmetatable(exprName, ASTNodeExprName)
+    local node = ASTNodeExpr.New('Name')
+    node.Name = name;
+    return setmetatable(node, ASTNodeExprName)
 end
