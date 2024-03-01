@@ -43,5 +43,9 @@ Functions:
 
     mul := fun[a num, b num] { a * b }
     mul := fun[a num, b num] num { a * b }
+    
+    mul[a num, b num] -> num ::= { a * b }
+
+
 
 */

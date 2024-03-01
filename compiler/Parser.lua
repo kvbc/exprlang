@@ -40,7 +40,7 @@ end
 ---@nodiscard
 ---@return ASTNodeExprBlock?
 function Parser:parse()
-    return self:tryParseExprBlock()
+    return self:tryParseExprBlock(true)
 end
 
 ---@private
@@ -54,16 +54,18 @@ function Parser:token(offset)
     end
 end
 
+---@private
+---@nodiscard
+---@param value any
+---@return boolean
+function Parser:isToken(value)
+    return self:token() ~= nil and self:token():Is(value)
+end
+
 ---@param by integer?
 ---@private
 function Parser:advance(by)
     self.tokenIndex = self.tokenIndex + (by or 1)
-end
-
----@private
----@param message string
-function Parser:error(message)
-    table.insert(self.Errors, message)
 end
 
 ---@private
@@ -98,52 +100,60 @@ end
 ---@nodiscard
 ---@return ASTNodeExpr?
 function Parser:tryParseExpr()
-    ---@type ASTNodeExpr?
-    local expr = nil
-    local token = self:token()
-    if token and token.Type == 'name' then
-        self:advance()
-        local name = token.Value
-        expr = self:tryParseExprDef(name) or ASTNodeExprName.New(name)
-    else
-        expr = self:tryParseExprBlock() or self:tryParseExprLiteral()
-    end
-    if expr then
-        return self:tryParseExprCall(expr) or expr
-    end
+    return self:backtrack(function(error)
+        ---@type ASTNodeExpr?
+        local expr = nil
+        local token = self:token()
+        if token and token.Type == 'name' then
+            self:advance()
+            local name = token.Value
+            expr = self:tryParseExprDef(name) or ASTNodeExprName.New(name)
+        else
+            expr = self:tryParseExprBlock() or self:tryParseExprLiteral()
+        end
+        if expr then
+            return self:tryParseExprCall(expr) or expr
+        end
+    end)
 end
 
 ---@private
 ---@nodiscard
+---@param omitBrackets boolean?
 ---@return ASTNodeExprBlock?
-function Parser:tryParseExprBlock()
-    if self:token():Is('{') then
-        local startToken = self:token()
-        assert(startToken)
+function Parser:tryParseExprBlock(omitBrackets)
+    return self:backtrack(function(error)
+        if omitBrackets or self:isToken('{') then
+            local startToken = self:token()
+            assert(startToken)
 
-        self:advance()
+            if not omitBrackets then
+                self:advance()
+            end
 
-        ---@type ASTNodeExpr[]
-        local expressions = {}
-        while true do
-            local expr = self:tryParseExpr()
-            if expr then
-                table.insert(expressions, expr)
+            ---@type ASTNodeExpr[]
+            local expressions = {}
+            while true do
+                local expr = self:tryParseExpr()
+                if expr then
+                    table.insert(expressions, expr)
+                else
+                    break
+                end
+            end
+
+            if omitBrackets or self:isToken('}') then
+                if not omitBrackets then
+                    self:advance()
+                end
+                return ASTNodeExprBlock.New(expressions)
             else
-                break
+                local err = self:token().SourceRange:ToString(self.source, 'Expected closing bracket "}"')
+                err = err .. '\n' .. startToken.SourceRange:ToString(self.source, 'For "{"')
+                error(err)
             end
         end
-
-        if self:token():Is('}') then
-            self:advance()
-
-            return ASTNodeExprBlock.New(expressions)
-        else
-            local err = self:token().SourceRange:ToString(self.source, 'Expected closing bracket "}"')
-            err = err .. '\n' .. startToken.SourceRange:ToString(self.source, 'For "{"')
-            self:error(err)
-        end
-    end
+    end)
 end
 
 --[[
@@ -159,13 +169,13 @@ function Parser:tryParseExprDef(name)
         ---@type ASTNodeType?
         local type = nil
     
-        if self:token():Is(':=') then
+        if self:isToken(':=') then
             self:advance()
             type = ASTNodeType.New('auto')
         else
             type = self:tryParseType()
             if type then
-                if self:token():Is('=') then
+                if self:isToken('=') then
                     self:advance()                
                 else
                     error(self:token().SourceRange:ToString(self.source, 'Expected "="'))
@@ -191,43 +201,45 @@ end
 ---@nodiscard
 ---@return ASTNodeExprLiteralStruct?
 function Parser:tryParseExprLiteralStruct()
-    if self:token():Is('[') then
-        local startToken = self:token()
-        assert(startToken)
+    return self:backtrack(function(error)
+        if self:isToken('[') then
+            local startToken = self:token()
+            assert(startToken)
 
-        self:advance()
-
-        ---@type ASTNodeExpr[]
-        local exprs = {}
-        while true do
-            if self:token():Is(']') then
-                break
-            end
-            if #exprs > 0 then
-                if not (self:token():Is(',') or self:token():Is(';')) then
-                    local err = self:token().SourceRange:ToString(self.source, 'Expected separator <,> or <;>')
-                    err = err .. '\n' .. startToken.SourceRange:ToString(self.source, 'For "["')
-                    self:error(err)
-                end
-                self:advance()
-            end
-            local expr = self:tryParseExpr()
-            if expr then
-                table.insert(exprs, expr)
-            else
-                break
-            end
-        end
-
-        if self:token():Is(']') then
             self:advance()
-            return ASTNodeExprLiteralStruct.New(exprs)
-        else
-            local err = self:token().SourceRange:ToString(self.source, 'Expected closing bracket "]"')
-            err = err .. '\n' .. startToken.SourceRange:ToString(self.source, 'For "["')
-            self:error(err)
+
+            ---@type ASTNodeExpr[]
+            local exprs = {}
+            while true do
+                if self:isToken(']') then
+                    break
+                end
+                if #exprs > 0 then
+                    if not (self:isToken(',') or self:isToken(';')) then
+                        local err = self:token().SourceRange:ToString(self.source, 'Expected separator <,> or <;>')
+                        err = err .. '\n' .. startToken.SourceRange:ToString(self.source, 'For "["')
+                        error(err)
+                    end
+                    self:advance()
+                end
+                local expr = self:tryParseExpr()
+                if expr then
+                    table.insert(exprs, expr)
+                else
+                    break
+                end
+            end
+
+            if self:isToken(']') then
+                self:advance()
+                return ASTNodeExprLiteralStruct.New(exprs)
+            else
+                local err = self:token().SourceRange:ToString(self.source, 'Expected closing bracket "]"')
+                err = err .. '\n' .. startToken.SourceRange:ToString(self.source, 'For "["')
+                error(err)
+            end
         end
-    end
+    end)
 end
 
 --[[
@@ -239,17 +251,19 @@ end
 ---@nodiscard
 ---@return ASTNodeExprLiteral?
 function Parser:tryParseExprLiteral()
-    local token = self:token()
-    if token then
-        if token.Type == 'number literal' then
-            self:advance()
-            return ASTNodeExprLiteralNumber.New(token.Value)
-        elseif token.Type == 'string literal' then
-            self:advance()
-            return ASTNodeExprLiteralString.New(token.Value)
+    return self:backtrack(function(error)
+        local token = self:token()
+        if token then
+            if token.Type == 'number literal' then
+                self:advance()
+                return ASTNodeExprLiteralNumber.New(token.Value)
+            elseif token.Type == 'string literal' then
+                self:advance()
+                return ASTNodeExprLiteralString.New(token.Value)
+            end
+            return self:tryParseExprLiteralStruct()
         end
-        return self:tryParseExprLiteralStruct()
-    end
+    end)
 end
 
 --[[
@@ -260,11 +274,13 @@ end
 ---@param func ASTNodeExpr
 ---@return ASTNodeExprCall?
 function Parser:tryParseExprCall(func)
-    -- self:error(self:token().SourceRange:ToString(self.source, 'hier'))
-    local args = self:tryParseExprLiteralStruct()
-    if args then
-        return ASTNodeExprCall.New(func, args)
-    end
+    return self:backtrack(function(error)
+        -- self:error(self:token().SourceRange:ToString(self.source, 'hier'))
+        local args = self:tryParseExprLiteralStruct()
+        if args then
+            return ASTNodeExprCall.New(func, args)
+        end
+    end)
 end
 
 --[[
@@ -275,18 +291,20 @@ end
 ---@nodiscard
 ---@return ASTNodeType?
 function Parser:tryParseType()
-    if self:token():Is('num') then
-        self:advance()
-        return ASTNodeType.New('number')
-    end
-    if self:token():Is('auto') then
-        self:advance()
-        return ASTNodeType.New('auto')
-    end
-    local structType = self:tryParseTypeStruct()
-    if structType then
-        return self:tryParseTypeFunction(structType, false) or structType
-    end
+    return self:backtrack(function(error)
+        if self:isToken('num') then
+            self:advance()
+            return ASTNodeType.New('number')
+        end
+        if self:isToken('auto') then
+            self:advance()
+            return ASTNodeType.New('auto')
+        end
+        local structType = self:tryParseTypeStruct()
+        if structType then
+            return self:tryParseTypeFunction(structType, false) or structType
+        end
+    end)
 end
 
 --[[
@@ -298,43 +316,45 @@ end
 ---@nodiscard
 ---@return ASTNodeTypeStruct?
 function Parser:tryParseTypeStruct()
-    if self:token():Is('[') then
-        local startToken = self:token()
-        assert(startToken)
+    return self:backtrack(function(error)
+        if self:isToken('[') then
+            local startToken = self:token()
+            assert(startToken)
 
-        self:advance()
-
-        ---@type ASTNodeType[]
-        local fields = {}
-        while true do
-            if self:token():Is(']') then
-                break
-            end
-            if #fields > 0 then
-                if not (self:token():Is(',') or self:token():Is(';')) then
-                    local err = self:token().SourceRange:ToString(self.source, 'Expected separator <,> or <;>')
-                    err = err .. '\n' .. startToken.SourceRange:ToString(self.source, 'For "["')
-                    self:error(err)
-                end
-                self:advance()
-            end
-            local type = self:tryParseType()
-            if type then
-                table.insert(fields, type)
-            else
-                break
-            end
-        end
-
-        if self:token():Is(']') then
             self:advance()
-            return ASTNodeTypeStruct.New(fields)
-        else
-            local err = self:token().SourceRange:ToString(self.source, 'Expected closing bracket "]"')
-            err = err .. '\n' .. startToken.SourceRange:ToString(self.source, 'For "["')
-            self:error(err)
+
+            ---@type ASTNodeType[]
+            local fields = {}
+            while true do
+                if self:isToken(']') then
+                    break
+                end
+                if #fields > 0 then
+                    if not (self:isToken(',') or self:isToken(';')) then
+                        local err = self:token().SourceRange:ToString(self.source, 'Expected separator <,> or <;>')
+                        err = err .. '\n' .. startToken.SourceRange:ToString(self.source, 'For "["')
+                        error(err)
+                    end
+                    self:advance()
+                end
+                local type = self:tryParseType()
+                if type then
+                    table.insert(fields, type)
+                else
+                    break
+                end
+            end
+
+            if self:isToken(']') then
+                self:advance()
+                return ASTNodeTypeStruct.New(fields)
+            else
+                local err = self:token().SourceRange:ToString(self.source, 'Expected closing bracket "]"')
+                err = err .. '\n' .. startToken.SourceRange:ToString(self.source, 'For "["')
+                error(err)
+            end
         end
-    end
+    end)
 end
 
 --[[
@@ -347,22 +367,24 @@ end
 ---@param mustParse boolean?
 ---@return ASTNodeTypeFunction?
 function Parser:tryParseTypeFunction(paramsType, mustParse)
-    if mustParse == nil then
-        mustParse = true
-    end
-    paramsType = paramsType or self:tryParseTypeStruct()
-    if not paramsType then
-        return
-    end
-    if self:token():Is('->') then
-        self:advance()
-        local returnType = self:tryParseType()
-        if returnType then
-            return ASTNodeTypeFunction.New(paramsType, returnType)
-        else
-            self:error(self:token().SourceRange:ToString(self.source, 'Expected return type'))
+    return self:backtrack(function(error)
+        if mustParse == nil then
+            mustParse = true
         end
-    elseif mustParse then
-        self:error(self:token().SourceRange:ToString(self.source, 'Expected "->" for function type'))
-    end
+        paramsType = paramsType or self:tryParseTypeStruct()
+        if not paramsType then
+            return
+        end
+        if self:isToken('->') then
+            self:advance()
+            local returnType = self:tryParseType()
+            if returnType then
+                return ASTNodeTypeFunction.New(paramsType, returnType)
+            else
+                error(self:token().SourceRange:ToString(self.source, 'Expected return type'))
+            end
+        elseif mustParse then
+            error(self:token().SourceRange:ToString(self.source, 'Expected "->" for function type'))
+        end
+    end)
 end

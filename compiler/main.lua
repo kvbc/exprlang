@@ -41,26 +41,7 @@ local pprint = require "lib.pprint"
 -- func [num] -> num = { a }
 local src = [[
 
-{
-    func[a, a]
-}
-
-this is my source code
-and this is mid
-hello !
-end :)
-345.5633.34
-
-~=
-==
-
-replace
-
->=
-
-"this ia test test"
-
-"unclosed :(
+print["string"]
 
 ]]
 
@@ -81,10 +62,10 @@ local function printErrors(errors)
     end
 end
 
-local startSourcePos = SourcePos.New(2, 5)
-local endSourcePos = SourcePos.New(5, 4)
-local sourceRange = SourceRange.New(startSourcePos, endSourcePos)
-print(sourceRange:ToString(source, "message\n1\n2\n3\nabc\ndef"))
+-- local startSourcePos = SourcePos.New(2, 5)
+-- local endSourcePos = SourcePos.New(5, 4)
+-- local sourceRange = SourceRange.New(startSourcePos, endSourcePos)
+-- print(sourceRange:ToString(source, "message\n1\n2\n3\nabc\ndef"))
 
 local lexer = Lexer.New(source)
 local tokens = lexer:Lex()
