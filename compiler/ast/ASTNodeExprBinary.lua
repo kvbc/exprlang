@@ -1,3 +1,5 @@
+local ASTNodeExpr = require "ast.ASTNodeExpr"
+
 ---@alias BinOpKind
 ---| '+'
 ---| '-'
@@ -12,6 +14,19 @@
 ---| '<='
 ---| '>'
 ---| '<'
+---| '.'
+
+---@alias BinOpPriority integer | {Left: integer; Right: integer}
+---@nodiscard
+---@param left integer
+---@param right integer?
+---@return BinOpPriority
+local function priority(left, right)
+    return {
+        Left = left;
+        Right = right or left;
+    }
+end
 
 ---@class ASTNodeExprBinary : ASTNodeExpr
 ---@field OpKind BinOpKind
@@ -24,29 +39,31 @@ ASTNodeExprBinary.__index = ASTNodeExprBinary
 ASTNodeExprBinary.Ops = {
     '+', '-', '*', '/', '%',
     '==', '~=', '>=', '<=', '>', '<',
+    '.',
     'and', 'or'
 }
 
----@type { [BinOpKind]: integer }
+---@type { [BinOpKind]: BinOpPriority }
 ASTNodeExprBinary.OpPriority = {
-    
-    ['*'] = 5;
-    ['/'] = 5;
-    ['%'] = 5;
-    
-    ['+'] = 4;
-    ['-'] = 4;
+    ["."] = priority(6, 7), -- left-assoc
 
-    ['=='] = 3;
-    ['~='] = 3;
-    ['>='] = 3;
-    ['<='] = 3;
-    ['<'] = 3;
-    ['>'] = 3;
+    ['*'] = priority(5);
+    ['/'] = priority(5);
+    ['%'] = priority(5);
     
-    ['and'] = 2;
+    ['+'] = priority(4);
+    ['-'] = priority(4);
 
-    ['or'] = 1;
+    ['=='] = priority(3);
+    ['~='] = priority(3);
+    ['>='] = priority(3);
+    ['<='] = priority(3);
+    ['<'] = priority(3);
+    ['>'] = priority(3);
+    
+    ['and'] = priority(2);
+
+    ['or'] = priority(1);
 }
 
 ---@nodiscard

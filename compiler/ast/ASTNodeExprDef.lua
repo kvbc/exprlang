@@ -1,8 +1,10 @@
+local ASTNodeExpr = require "ast.ASTNodeExpr"
+
 ---@class ASTNodeExprDef : ASTNodeExpr
 ---@field Name string
 ---@field Type ASTNodeType
 ---@field Expr ASTNodeExpr
-ASTNodeExprDef = {}
+local ASTNodeExprDef = {}
 ASTNodeExprDef.__index = ASTNodeExprDef
 
 ---@nodiscard
@@ -11,11 +13,14 @@ ASTNodeExprDef.__index = ASTNodeExprDef
 ---@param expr ASTNodeExpr
 ---@return ASTNodeExprDef
 function ASTNodeExprDef.New(name, type, expr)
-    ---@type ASTNodeExprDef
-    local node = ASTNodeExpr.New('Def')
+    local node = ASTNodeExpr.New('Def') ---@cast node ASTNodeExprDef
+    
     node.Name = name;
     node.Type = type;
     node.Expr = expr;
     node.String = ("%s %s = %s"):format(name, type.String, expr.String)
+    
     return setmetatable(node, ASTNodeExprDef)
 end
+
+return ASTNodeExprDef

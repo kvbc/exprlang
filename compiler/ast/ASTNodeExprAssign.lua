@@ -1,18 +1,20 @@
+local ASTNodeExpr = require "ast.ASTNodeExpr"
+
 ---@class ASTNodeExprAssign : ASTNodeExpr
----@field Name string
+---@field LValue ASTNodeExprName | ASTNodeExprBinary
 ---@field Value ASTNodeExpr
 local ASTNodeExprAssign = {}
 ASTNodeExprAssign.__index = ASTNodeExprAssign
 
 ---@nodiscard
----@param name string
+---@param lvalue ASTNodeExprName | ASTNodeExprBinary
 ---@param value ASTNodeExpr
 ---@return ASTNodeExprAssign
-function ASTNodeExprAssign.New(name, value)
+function ASTNodeExprAssign.New(lvalue, value)
     local node = ASTNodeExpr.New('Assign') ---@cast node ASTNodeExprAssign
-    node.Name = name
+    node.LValue = lvalue
     node.Value = value
-    node.String = ("%s = %s"):format(name, value.String)
+    node.String = ("%s = %s"):format(lvalue.String, value.String)
     return setmetatable(node, ASTNodeExprAssign)
 end
 

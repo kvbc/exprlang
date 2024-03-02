@@ -1,3 +1,5 @@
+local ASTNodeType = require "ast.ASTNodeType"
+
 ---@alias ASTNodeTypeStructField {Name: string?; Type: ASTNodeType}
 
 ---@class ASTNodeTypeStruct : ASTNodeType
@@ -10,6 +12,7 @@ ASTNodeTypeStruct.__index = ASTNodeTypeStruct
 ---@return ASTNodeTypeStruct
 function ASTNodeTypeStruct.New(fields)
     local node = ASTNodeType.New('struct') ---@cast node ASTNodeTypeStruct
+
     node.Fields = fields
     node.String = "["
     for i,field in ipairs(fields) do
@@ -19,6 +22,7 @@ function ASTNodeTypeStruct.New(fields)
             .. field.Type.String
     end
     node.String = node.String .. "]"
+
     return setmetatable(node, ASTNodeTypeStruct)
 end
 

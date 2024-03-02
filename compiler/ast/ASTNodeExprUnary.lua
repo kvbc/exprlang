@@ -1,3 +1,5 @@
+local ASTNodeExpr = require "ast.ASTNodeExpr"
+
 ---@alias UnaryOpKind
 ---| 'not'
 ---| '-'
@@ -20,8 +22,10 @@ ASTNodeExprUnary.Ops = {
 ---@return ASTNodeExprUnary
 function ASTNodeExprUnary.New(opKind, opExpr)
     local node = ASTNodeExpr.New('Unary') ---@cast node ASTNodeExprUnary
+    
     node.OpKind = opKind
     node.OpExpr = opExpr
+    
     return setmetatable(node, ASTNodeExprUnary)
 end
 

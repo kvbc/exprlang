@@ -1,7 +1,9 @@
+local ASTNodeExpr = require "ast.ASTNodeExpr"
+
 ---@class ASTNodeExprCall : ASTNodeExpr
 ---@field Func ASTNodeExpr
 ---@field Args ASTNodeExprLiteralStruct
-ASTNodeExprCall = {}
+local ASTNodeExprCall = {}
 ASTNodeExprCall.__index = ASTNodeExprCall
 
 ---@nodiscard
@@ -9,10 +11,13 @@ ASTNodeExprCall.__index = ASTNodeExprCall
 ---@param args ASTNodeExprLiteralStruct
 ---@return ASTNodeExprCall
 function ASTNodeExprCall.New(func, args)
-    ---@type ASTNodeExprCall
-    local node = ASTNodeExpr.New('Call')
+    local node = ASTNodeExpr.New('Call') ---@cast node ASTNodeExprCall
+
     node.Func = func;
     node.Args = args;
     node.String = func.String .. args.String
+
     return setmetatable(node, ASTNodeExprCall)
 end
+
+return ASTNodeExprCall

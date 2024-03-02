@@ -6,7 +6,7 @@
 
 ---@class ASTNodeType : ASTNode
 ---@field Kind ASTNodeTypeKind
-ASTNodeType = {}
+local ASTNodeType = {}
 ASTNodeType.__index = ASTNodeType
 
 ---@nodiscard
@@ -16,7 +16,9 @@ function ASTNodeType.New(kind)
     ---@type ASTNodeType
     local node = {
         Kind = kind;
+        String = kind;
     }
-    node.String = kind
     return setmetatable(node, ASTNodeType)
 end
+
+return ASTNodeType

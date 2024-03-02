@@ -1,14 +1,16 @@
+local ASTNodeExpr = require "ast.ASTNodeExpr"
+
 ---@class ASTNodeExprBlock : ASTNodeExpr
 ---@field Expressions ASTNodeExpr[]
-ASTNodeExprBlock = {}
+local ASTNodeExprBlock = {}
 ASTNodeExprBlock.__index = ASTNodeExprBlock
 
 ---@nodiscard
 ---@param expressions ASTNodeExpr[]
 ---@return ASTNodeExprBlock
 function ASTNodeExprBlock.New(expressions)
-    ---@type ASTNodeExprBlock
-    local node = ASTNodeExpr.New('Block')
+    local node = ASTNodeExpr.New('Block') ---@cast node ASTNodeExprBlock
+    
     node.Expressions = expressions
 
     node.String = "{"
@@ -19,3 +21,5 @@ function ASTNodeExprBlock.New(expressions)
 
     return setmetatable(node, ASTNodeExprBlock)
 end
+
+return ASTNodeExprBlock

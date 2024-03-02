@@ -1,0 +1,18 @@
+fib := fun [n num] -> num {
+    n <= 2 and 1 or fib[n-1] + fib[n-2]
+}   
+print[fib[15]]
+
+add := fun [a num, b num] -> num {
+	a + b
+}
+print[add[3, 5]]
+
+table := [
+	[
+		[1, 2, 3]
+	]
+]
+print[table]
+table.(1).(1).(4) = 5
+print[table]

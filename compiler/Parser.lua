@@ -1,22 +1,22 @@
 local pprint = require "lib.pprint"
 
-require "ast.ASTNode"
-require "ast.ASTNodeExpr"
-require "ast.ASTNodeExprBlock"
-require "ast.ASTNodeExprName"
-require "ast.ASTNodeExprDef"
-require "ast.ASTNodeExprCall"
+local ASTNode = require "ast.ASTNode"
+local ASTNodeExpr = require "ast.ASTNodeExpr"
+local ASTNodeExprBlock = require "ast.ASTNodeExprBlock"
+local ASTNodeExprName = require "ast.ASTNodeExprName"
+local ASTNodeExprDef = require "ast.ASTNodeExprDef"
+local ASTNodeExprCall = require "ast.ASTNodeExprCall"
 local ASTNodeExprUnary = require "ast.ASTNodeExprUnary"
 local ASTNodeExprBinary = require "ast.ASTNodeExprBinary"
 local ASTNodeExprAssign = require "ast.ASTNodeExprAssign"
-require "ast.ASTNodeType"
 local ASTNodeTypeStruct = require "ast.ASTNodeTypeStruct"
-require "ast.ASTNodeTypeFunction"
-require "ast.ASTNodeExprLiteral"
-require "ast.ASTNodeExprLiteralNumber"
-require "ast.ASTNodeExprLiteralString"
-require "ast.ASTNodeExprLiteralStruct"
-require "ast.ASTNodeExprFun"
+local ASTNodeType = require "ast.ASTNodeType"
+local ASTNodeTypeFunction = require "ast.ASTNodeTypeFunction"
+local ASTNodeExprLiteral = require "ast.ASTNodeExprLiteral"
+local ASTNodeExprLiteralNumber = require "ast.ASTNodeExprLiteralNumber"
+local ASTNodeExprLiteralString = require "ast.ASTNodeExprLiteralString"
+local ASTNodeExprLiteralStruct = require "ast.ASTNodeExprLiteralStruct"
+local ASTNodeExprFun = require "ast.ASTNodeExprFun"
 
 ---@class Parser
 ---@field private source Source
@@ -120,20 +120,16 @@ end
 function Parser:tryParseExpr(prevBinOpPriority)
     return self:backtrack(function(error)
         ---@type ASTNodeExpr?
-        local expr = self:tryParseExprBlock()
+        local expr = self:tryParseGroupedExpr()
+                or self:tryParseExprBlock()
                 or self:tryParseExprFun()
                 or self:tryParseExprDef()
-                or self:tryParseExprAssign()
                 or self:tryParseExprUnary()
                 or self:tryParseExprLiteral()
-        if not expr then
-            local name = self:tryParseName()
-            if name then
-                expr = ASTNodeExprName.New(name)
-            end
-        end
+                or self:tryParseExprName()
         expr = expr and self:tryParseExprCall(expr) or expr
         expr = expr and self:tryParseExprBinary(expr, prevBinOpPriority) or expr
+        expr = expr and self:tryParseExprAssign(expr) or expr
         return expr
     end)
 end
@@ -147,6 +143,43 @@ function Parser:tryParseName()
         self:advance()
         return token.Value
     end
+end
+
+--[[
+    test
+--]]
+---@private
+---@nodiscard
+---@return ASTNodeExprName?
+function Parser:tryParseExprName()
+    local name = self:tryParseName()
+    return name and ASTNodeExprName.New(name)
+end
+
+--[[
+    (3 + 5)
+--]]
+---@private
+---@nodiscard
+---@return ASTNodeExpr?
+function Parser:tryParseGroupedExpr()
+    return self:backtrack(function (error)
+        if self:isToken('(') then
+            self:advance()
+    
+            local expr = self:tryParseExpr()
+            if not expr then
+                return error(self:sourceRange():ToString(self.source, 'Expected expression'))
+            end
+
+            if self:isToken(')') then
+                self:advance()
+                return expr
+            else
+                return error(self:sourceRange():ToString(self.source, 'Expected closing ")"'))
+            end
+        end
+    end)
 end
 
 --[[
@@ -177,12 +210,15 @@ end
 --]]
 ---@private
 ---@nodiscard
----@param expr ASTNodeExpr
+---@param expr ASTNodeExpr?
 ---@param prevPriority integer?
 ---@return ASTNodeExprBinary?
 function Parser:tryParseExprBinary(expr, prevPriority)
     return self:backtrack(function (error)
-        local opExpr1 = expr
+        local opExpr1 = expr or self:tryParseExpr()
+        if not opExpr1 then
+            return
+        end
 
         ---@type BinOpKind?
         local opKind
@@ -198,12 +234,16 @@ function Parser:tryParseExprBinary(expr, prevPriority)
         end
 
         local priority = ASTNodeExprBinary.OpPriority[opKind]
-        print(opKind, priority, "<", prevPriority)
-        if prevPriority and priority < prevPriority then
+        if prevPriority and priority.Left <= prevPriority then
             return
         end
 
-        local opExpr2 = self:tryParseExpr(priority)
+        ---@type ASTNodeExpr?
+        local opExpr2
+        if opKind == '.' then
+            opExpr2 = self:tryParseExprName()
+        end
+        opExpr2 = opExpr2 or self:tryParseExpr(priority.Right)
         if not opExpr2 then
             return error(self:sourceRange():ToString(self.source, "Expected second operand expression"))
         end
@@ -305,19 +345,24 @@ end
 
 --[[
     a = 3
+    a.b = 5
 ]]
 ---@private
 ---@nodiscard
+---@param expr ASTNodeExpr
 ---@return ASTNodeExprAssign?
-function Parser:tryParseExprAssign()
+function Parser:tryParseExprAssign(expr)
     return self:backtrack(function (error)
-        local token = self:token()
-        if not(token and token.Type == 'name') then
+        ---@type (ASTNodeExprName | ASTNodeExprBinary)?
+        local lvalue
+        if expr.Kind == 'Name' or expr.Kind == 'Binary' then
+            ---@cast expr (ASTNodeExprName | ASTNodeExprBinary)
+            lvalue = expr
+        end
+        if not lvalue then
             return
         end
-        local name = token.Value
-        self:advance()
-    
+
         if not self:isToken('=') then
             return
         end
@@ -328,7 +373,7 @@ function Parser:tryParseExprAssign()
             return error(self:sourceRange():ToString(self.source, "Expected value expression"))
         end
 
-        return ASTNodeExprAssign.New(name, exprValue)
+        return ASTNodeExprAssign.New(lvalue, exprValue)
     end)
 end
 
@@ -559,3 +604,4 @@ function Parser:tryParseTypeFunction(paramsType, mustParse)
         end
     end)
 end
+

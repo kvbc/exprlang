@@ -1,15 +1,20 @@
+local ASTNodeExpr = require "ast.ASTNodeExpr"
+
 ---@class ASTNodeExprName : ASTNodeExpr
 ---@field Name string
-ASTNodeExprName = {}
+local ASTNodeExprName = {}
 ASTNodeExprName.__index = ASTNodeExprName
 
 ---@nodiscard
 ---@param name string
 ---@return ASTNodeExprName
 function ASTNodeExprName.New(name)
-    ---@type ASTNodeExprName
-    local node = ASTNodeExpr.New('Name')
+    local node = ASTNodeExpr.New('Name') ---@cast node ASTNodeExprName
+    
     node.Name = name;
     node.String = name
+    
     return setmetatable(node, ASTNodeExprName)
 end
+
+return ASTNodeExprName

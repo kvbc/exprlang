@@ -1,3 +1,5 @@
+local ASTNodeExpr = require "ast.ASTNodeExpr"
+
 ---@alias ASTNodeExprLiteralKind
 ---| 'Number'
 ---| 'String'
@@ -5,15 +7,18 @@
 
 ---@class ASTNodeExprLiteral : ASTNodeExpr
 ---@field LiteralKind ASTNodeExprLiteralKind
-ASTNodeExprLiteral = {}
+local ASTNodeExprLiteral = {}
 ASTNodeExprLiteral.__index = ASTNodeExprLiteral
 
 ---@nodiscard
 ---@param kind ASTNodeExprLiteralKind
 ---@return ASTNodeExprLiteral
 function ASTNodeExprLiteral.New(kind)
-    ---@type ASTNodeExprLiteral
-    local node = ASTNodeExpr.New('Literal')
+    local node = ASTNodeExpr.New('Literal') ---@cast node ASTNodeExprLiteral
+    
     node.LiteralKind = kind
+    
     return setmetatable(node, ASTNodeExprLiteral)
 end
+
+return ASTNodeExprLiteral

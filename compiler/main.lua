@@ -41,36 +41,12 @@ local dedent = require "lib.dedent"
 local pprint = require "lib.pprint"
 
 -- func [num] -> num = { a }
-local src = [[
-
-# test := fun {
-#     print["testing!"]
-# }
-# test[]
-
-# a := 3
-# a = 7
-# a = 2 * 3 + 5 * 3 + 5 - 3
-# a = - not a
-# print[a]
-
-# fib := fun [n num] -> num {
-#     n + 5
-# }
-# print[fib[6] ]
-
-fib := fun [n num] -> num {
-    n <= 2 and 1 or fib[n-1] + fib[n-2]
-}   
-print[fib[15] ]
-
-# printn := fun [n num] -> num {
-#     print[n]
-#     n
-# }
-# print[1 <= 1 and 1 or printn[999] + printn[9999] ]
-
-]]
+local f = io.open('main.ry', "r")
+local src = "empty file"
+if f then
+    src = f:read("a")
+    f:close() 
+end
 
 local source = Source.New(src)
 local sourcePos = SourcePos.New(3, 5)

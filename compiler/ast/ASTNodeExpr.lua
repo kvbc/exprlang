@@ -11,7 +11,7 @@
 
 ---@class ASTNodeExpr : ASTNode
 ---@field Kind ASTNodeExprKind
-ASTNodeExpr = {}
+local ASTNodeExpr = {}
 ASTNodeExpr.__index = ASTNodeExpr
 
 ---@param kind ASTNodeExprKind
@@ -22,3 +22,5 @@ function ASTNodeExpr.New(kind)
     }
     return setmetatable(expr, ASTNodeExpr)
 end
+
+return ASTNodeExpr

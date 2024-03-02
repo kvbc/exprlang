@@ -118,7 +118,7 @@ end
 ---@nodiscard
 ---@param exprBin ASTNodeExprBinary
 ---@param scope Scope
----@return any
+---@return any, any, any
 function Interpreter:interpretExprBinary(exprBin, scope)
     local opKind = exprBin.OpKind
     local op1 = self:interpretExpr(exprBin.OpExpr1, scope)
@@ -136,6 +136,15 @@ function Interpreter:interpretExprBinary(exprBin, scope)
             b = op2
         end
         return unbool(b)
+    elseif opKind == '.' then
+        assert(op1 ~= nil)
+        if exprBin.OpExpr2.Kind == 'Name' then
+            local exprName = exprBin.OpExpr2 ---@cast exprName ASTNodeExprName
+            return op1[exprName.Name], op1, exprName.Name
+        else
+            local op2 = self:interpretExpr(exprBin.OpExpr2, scope)
+            return op1[op2], op1, op2
+        end
     else
         local op2 = self:interpretExpr(exprBin.OpExpr2, scope)
         if     opKind == '+'   then return op1 + op2
@@ -193,10 +202,16 @@ end
 ---@param exprAssign ASTNodeExprAssign
 ---@param scope Scope
 function Interpreter:interpretExprAssign(exprAssign, scope)
-    for _,var in ipairs(scope.Variables) do
-        if var.Name == exprAssign.Name then
-            var.Value = self:interpretExpr(exprAssign.Value, scope)
+    if exprAssign.LValue.Kind == 'Name' then
+        for _,var in ipairs(scope.Variables) do
+            if var.Name == exprAssign.LValue.Name then
+                var.Value = self:interpretExpr(exprAssign.Value, scope)
+            end
         end
+    elseif exprAssign.LValue.Kind == 'Binary' then
+        local _, obj, key = self:interpretExpr(exprAssign.LValue, scope)
+        assert(key)
+        obj[key] = self:interpretExpr(exprAssign.Value, scope)
     end
 end
 
