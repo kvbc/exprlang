@@ -9,9 +9,10 @@ ASTNodeExprFun.__index = ASTNodeExprFun
 ---@nodiscard
 ---@param functionType ASTNodeTypeFunction?
 ---@param functionBody ASTNodeExprBlock
+---@param sourceRange SourceRange
 ---@return ASTNodeExprFun
-function ASTNodeExprFun.New(functionType, functionBody)
-    local node = ASTNodeExpr.New('Fun') ---@cast node ASTNodeExprFun
+function ASTNodeExprFun.New(functionType, functionBody, sourceRange)
+    local node = ASTNodeExpr.New('Fun', sourceRange) ---@cast node ASTNodeExprFun
     
     node.FunctionType = functionType;
     node.FunctionBody = functionBody;

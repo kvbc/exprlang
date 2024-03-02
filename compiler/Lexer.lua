@@ -248,7 +248,7 @@ function Lexer:tryLexOperator()
         return
     end
     local op = c1 .. c2
-    if op=='==' or op=='~=' or op=='>=' or op=='<=' or op=='->' or op==':=' then
+    if op=='==' or op=='~=' or op=='>=' or op=='<=' or op==':=' or op=='->' then
         local startSourcePos = self:sourcePos()
         self:advance()
         local endSourcePos = self:sourcePos()

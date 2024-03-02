@@ -50,6 +50,7 @@ end
 
 local source = Source.New(src)
 local sourcePos = SourcePos.New(3, 5)
+
 -- print(sourcePos:ToString(dedent [[
 --     long message
 --     with long
@@ -89,7 +90,9 @@ pprint(ast)
 
 if ast then
     local interpreter = Interpreter.New(ast)
-    print('\nInterpret Result\n')
+    print('\nGlobal Scope\n')
+    print(pprint.pformat(interpreter.GlobalScope, { show_function = true }))
+    print('\nOutput\n')
     interpreter:Interpret()
     print('\nInterpret Errors\n')
     printErrors(interpreter.Errors)

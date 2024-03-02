@@ -87,7 +87,7 @@ function Parser:advance(by)
 end
 
 ---@private
----@param parseFunc fun(error: fun(message: string)): any
+---@param parseFunc fun(error: fun(message: string)): ...
 function Parser:backtrack(parseFunc)
     local prevTokenIndex = self.tokenIndex
     local newErrors = {}
@@ -97,8 +97,8 @@ function Parser:backtrack(parseFunc)
         table.insert(newErrors, message)
     end
     
-    local ret = parseFunc(errorFunc)
-    if ret == nil then
+    local rets = table.pack(parseFunc(errorFunc))
+    if rets[1] == nil then
         -- backtrack
         self.tokenIndex = prevTokenIndex
     end
@@ -106,7 +106,7 @@ function Parser:backtrack(parseFunc)
         table.insert(self.Errors, error)
     end
     
-    return ret
+    return table.unpack(rets)
 end
 
 --[[
@@ -127,21 +127,25 @@ function Parser:tryParseExpr(prevBinOpPriority)
                 or self:tryParseExprUnary()
                 or self:tryParseExprLiteral()
                 or self:tryParseExprName()
-        expr = expr and self:tryParseExprCall(expr) or expr
-        expr = expr and self:tryParseExprBinary(expr, prevBinOpPriority) or expr
-        expr = expr and self:tryParseExprAssign(expr) or expr
+
+        if expr then
+            expr = self:tryParseExprCall(expr) or expr
+            expr = self:tryParseExprBinary(expr, prevBinOpPriority) or expr
+            expr = self:tryParseExprAssign(expr) or expr
+        end
+
         return expr
     end)
 end
 
 ---@private
 ---@nodiscard
----@return string?
+---@return string?, Token?
 function Parser:tryParseName()
     local token = self:token()
     if token and token.Type == 'name' then
         self:advance()
-        return token.Value
+        return token.Value, token
     end
 end
 
@@ -152,8 +156,12 @@ end
 ---@nodiscard
 ---@return ASTNodeExprName?
 function Parser:tryParseExprName()
-    local name = self:tryParseName()
-    return name and ASTNodeExprName.New(name)
+    local name, token = self:tryParseName()
+    if not name then
+        return
+    end
+    assert(token)
+    return ASTNodeExprName.New(name, token.SourceRange)
 end
 
 --[[
@@ -191,7 +199,8 @@ end
 function Parser:tryParseExprUnary()
     return self:backtrack(function (error)
         for _,op in ipairs(ASTNodeExprUnary.Ops) do
-            if self:isToken(op) then
+            local startToken = self:token()
+            if startToken and startToken:Is(op) then
                 self:advance()
                 
                 local expr = self:tryParseExpr()
@@ -199,7 +208,10 @@ function Parser:tryParseExprUnary()
                     return error(self:sourceRange():ToString(self.source, "Expected expression"))
                 end
 
-                return ASTNodeExprUnary.New(op, expr)
+                return ASTNodeExprUnary.New(
+                    op, expr,
+                    SourceRange.FromRanges(startToken.SourceRange, expr.SourceRange)
+                )
             end
         end
     end)
@@ -239,16 +251,17 @@ function Parser:tryParseExprBinary(expr, prevPriority)
         end
 
         ---@type ASTNodeExpr?
-        local opExpr2
-        if opKind == '.' then
-            opExpr2 = self:tryParseExprName()
-        end
+        local opExpr2 = (opKind == '.') and self:tryParseExprName() or nil
         opExpr2 = opExpr2 or self:tryParseExpr(priority.Right)
         if not opExpr2 then
             return error(self:sourceRange():ToString(self.source, "Expected second operand expression"))
         end
         
-        local newExpr = ASTNodeExprBinary.New(opKind, opExpr1, opExpr2)
+        local newExpr = ASTNodeExprBinary.New(
+            opKind, opExpr1, opExpr2,
+            SourceRange.FromRanges(opExpr1.SourceRange, opExpr2.SourceRange)
+        )
+
         return self:tryParseExprBinary(newExpr) or newExpr
     end)
 end
@@ -259,6 +272,7 @@ end
 ---@return ASTNodeExprBlock?
 function Parser:tryParseExprBlock(omitBrackets)
     return self:backtrack(function(error)
+        local startSourceRange = self:sourceRange()
         if omitBrackets or self:isToken('{') then
             local startToken = self:token()
 
@@ -281,11 +295,17 @@ function Parser:tryParseExprBlock(omitBrackets)
                 error(self:sourceRange():ToString(self.source, 'Expected <EOF>'))
             end
 
-            if omitBrackets or self:isToken('}') then
+            local endToken = self:token()
+            if omitBrackets or (endToken and endToken:Is('}')) then
+                local endSourceRange = self:sourceRange()
                 if not omitBrackets then
+                    endSourceRange = assert(endToken).SourceRange
                     self:advance()
                 end
-                return ASTNodeExprBlock.New(expressions)
+                return ASTNodeExprBlock.New(
+                    expressions,
+                    SourceRange.FromRanges(startSourceRange, endSourceRange)
+                )
             else
                 assert(startToken)
                 local err = self:sourceRange():ToString(self.source, 'Expected closing bracket "}"')
@@ -319,7 +339,7 @@ function Parser:tryParseExprDef()
     
         if self:isToken(':=') then
             self:advance()
-            type = ASTNodeType.New('auto')
+            type = ASTNodeType.New('auto', self:sourceRange())
         else
             type = self:tryParseType()
             if type then
@@ -335,7 +355,10 @@ function Parser:tryParseExprDef()
         if type then
             local expr = self:tryParseExpr()
             if expr then
-                return ASTNodeExprDef.New(name, type, expr)
+                return ASTNodeExprDef.New(
+                    name, type, expr,
+                    SourceRange.FromRanges(token.SourceRange, expr.SourceRange)
+                )
             else
                 error(self:sourceRange():ToString(self.source, 'Expected expression'))
             end
@@ -373,7 +396,10 @@ function Parser:tryParseExprAssign(expr)
             return error(self:sourceRange():ToString(self.source, "Expected value expression"))
         end
 
-        return ASTNodeExprAssign.New(lvalue, exprValue)
+        return ASTNodeExprAssign.New(
+            lvalue, exprValue,
+            SourceRange.FromRanges(expr.SourceRange, exprValue.SourceRange)
+        )
     end)
 end
 
@@ -386,6 +412,7 @@ end
 function Parser:tryParseExprLiteralStruct()
     return self:backtrack(function(error)
         if self:isToken('[') then
+            local startSourceRange = self:sourceRange()
             local startToken = self:token()
             assert(startToken)
 
@@ -414,8 +441,12 @@ function Parser:tryParseExprLiteralStruct()
             end
 
             if self:isToken(']') then
+                local endSourceRange = self:sourceRange()
                 self:advance()
-                return ASTNodeExprLiteralStruct.New(exprs)
+                return ASTNodeExprLiteralStruct.New(
+                    exprs,
+                    SourceRange.FromRanges(startSourceRange, endSourceRange)
+                )
             else
                 local err = self:sourceRange():ToString(self.source, 'Expected closing bracket "]"')
                 err = err .. '\n' .. startToken.SourceRange:ToString(self.source, 'For "["')
@@ -437,12 +468,19 @@ function Parser:tryParseExprLiteral()
     return self:backtrack(function(error)
         local token = self:token()
         if token then
+            local startSourceRange = self:sourceRange()
             if token.Type == 'number literal' then
                 self:advance()
-                return ASTNodeExprLiteralNumber.New(token.Value)
+                return ASTNodeExprLiteralNumber.New(
+                    token.Value,
+                    SourceRange.FromRanges(startSourceRange, self:sourceRange())
+                )
             elseif token.Type == 'string literal' then
                 self:advance()
-                return ASTNodeExprLiteralString.New(token.Value)
+                return ASTNodeExprLiteralString.New(
+                    token.Value,
+                    SourceRange.FromRanges(startSourceRange, self:sourceRange())
+                )
             end
             return self:tryParseExprLiteralStruct()
         end
@@ -463,7 +501,10 @@ function Parser:tryParseExprCall(expr)
         local args = self:tryParseExprLiteralStruct()
         if not args then return end
 
-        return ASTNodeExprCall.New(func, args)
+        return ASTNodeExprCall.New(
+            func, args,
+            SourceRange.FromRanges(expr.SourceRange, args.SourceRange)
+        )
     end)
 end
 
@@ -479,6 +520,8 @@ function Parser:tryParseExprFun()
             return
         end
 
+        local startSourceRange = self:sourceRange()
+
         self:advance()
 
         local funcType = self:tryParseTypeFunction()
@@ -488,7 +531,10 @@ function Parser:tryParseExprFun()
             return
         end
 
-        return ASTNodeExprFun.New(funcType, funcBody)
+        return ASTNodeExprFun.New(
+            funcType, funcBody,
+            SourceRange.FromRanges(startSourceRange, funcBody.SourceRange)
+        )
     end)
 end
 
@@ -502,12 +548,14 @@ end
 function Parser:tryParseType()
     return self:backtrack(function(error)
         if self:isToken('num') then
+            local sourceRange = self:sourceRange()
             self:advance()
-            return ASTNodeType.New('number')
+            return ASTNodeType.New('number', sourceRange)
         end
         if self:isToken('auto') then
+            local sourceRange = self:sourceRange()
             self:advance()
-            return ASTNodeType.New('auto')
+            return ASTNodeType.New('auto', sourceRange)
         end
         local structType = self:tryParseTypeStruct()
         if structType then
@@ -530,6 +578,7 @@ function Parser:tryParseTypeStruct()
         if self:isToken('[') then
             local startToken = self:token()
             assert(startToken)
+            local startSourceRange = self:sourceRange()
 
             self:advance()
 
@@ -562,8 +611,12 @@ function Parser:tryParseTypeStruct()
             end
 
             if self:isToken(']') then
+                local endSourceRange = self:sourceRange()
                 self:advance()
-                return ASTNodeTypeStruct.New(fields)
+                return ASTNodeTypeStruct.New(
+                    fields,
+                    SourceRange.FromRanges(startSourceRange, endSourceRange)
+                )
             -- else
             --     local err = self:sourceRange():ToString(self.source, 'Expected closing bracket "]"')
             --     err = err .. '\n' .. startToken.SourceRange:ToString(self.source, 'For "["')
@@ -574,7 +627,7 @@ function Parser:tryParseTypeStruct()
 end
 
 --[[
-    [num] => num
+    [num] -> num
     [num, num] -> [num]
 --]]
 ---@private
@@ -595,7 +648,10 @@ function Parser:tryParseTypeFunction(paramsType, mustParse)
             self:advance()
             local returnType = self:tryParseType()
             if returnType then
-                return ASTNodeTypeFunction.New(paramsType, returnType)
+                return ASTNodeTypeFunction.New(
+                    paramsType, returnType,
+                    SourceRange.FromRanges(paramsType.SourceRange, returnType.SourceRange)
+                )
             else
                 error(self:sourceRange():ToString(self.source, 'Expected return type'))
             end

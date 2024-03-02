@@ -9,9 +9,10 @@ ASTNodeExprCall.__index = ASTNodeExprCall
 ---@nodiscard
 ---@param func ASTNodeExpr
 ---@param args ASTNodeExprLiteralStruct
+---@param sourceRange SourceRange
 ---@return ASTNodeExprCall
-function ASTNodeExprCall.New(func, args)
-    local node = ASTNodeExpr.New('Call') ---@cast node ASTNodeExprCall
+function ASTNodeExprCall.New(func, args, sourceRange)
+    local node = ASTNodeExpr.New('Call', sourceRange) ---@cast node ASTNodeExprCall
 
     node.Func = func;
     node.Args = args;

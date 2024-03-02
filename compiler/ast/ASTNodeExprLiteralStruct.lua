@@ -7,9 +7,10 @@ ASTNodeExprLiteralStruct.__index = ASTNodeExprLiteralStruct
 
 ---@nodiscard
 ---@param values ASTNodeExpr[]
+---@param sourceRange SourceRange
 ---@return ASTNodeExprLiteralStruct
-function ASTNodeExprLiteralStruct.New(values)
-    local node = ASTNodeExprLiteral.New('Struct') ---@cast node ASTNodeExprLiteralStruct
+function ASTNodeExprLiteralStruct.New(values, sourceRange)
+    local node = ASTNodeExprLiteral.New('Struct', sourceRange) ---@cast node ASTNodeExprLiteralStruct
     
     node.Values = values
     node.String = "["

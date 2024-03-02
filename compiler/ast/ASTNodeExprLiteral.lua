@@ -12,9 +12,10 @@ ASTNodeExprLiteral.__index = ASTNodeExprLiteral
 
 ---@nodiscard
 ---@param kind ASTNodeExprLiteralKind
+---@param sourceRange SourceRange
 ---@return ASTNodeExprLiteral
-function ASTNodeExprLiteral.New(kind)
-    local node = ASTNodeExpr.New('Literal') ---@cast node ASTNodeExprLiteral
+function ASTNodeExprLiteral.New(kind, sourceRange)
+    local node = ASTNodeExpr.New('Literal', sourceRange) ---@cast node ASTNodeExprLiteral
     
     node.LiteralKind = kind
     

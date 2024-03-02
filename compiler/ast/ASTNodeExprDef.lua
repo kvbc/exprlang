@@ -11,9 +11,10 @@ ASTNodeExprDef.__index = ASTNodeExprDef
 ---@param name string
 ---@param type ASTNodeType
 ---@param expr ASTNodeExpr
+---@param sourceRange SourceRange
 ---@return ASTNodeExprDef
-function ASTNodeExprDef.New(name, type, expr)
-    local node = ASTNodeExpr.New('Def') ---@cast node ASTNodeExprDef
+function ASTNodeExprDef.New(name, type, expr, sourceRange)
+    local node = ASTNodeExpr.New('Def', sourceRange) ---@cast node ASTNodeExprDef
     
     node.Name = name;
     node.Type = type;

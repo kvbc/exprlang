@@ -9,9 +9,10 @@ ASTNodeExprAssign.__index = ASTNodeExprAssign
 ---@nodiscard
 ---@param lvalue ASTNodeExprName | ASTNodeExprBinary
 ---@param value ASTNodeExpr
+---@param sourceRange SourceRange
 ---@return ASTNodeExprAssign
-function ASTNodeExprAssign.New(lvalue, value)
-    local node = ASTNodeExpr.New('Assign') ---@cast node ASTNodeExprAssign
+function ASTNodeExprAssign.New(lvalue, value, sourceRange)
+    local node = ASTNodeExpr.New('Assign', sourceRange) ---@cast node ASTNodeExprAssign
     node.LValue = lvalue
     node.Value = value
     node.String = ("%s = %s"):format(lvalue.String, value.String)

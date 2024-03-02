@@ -1,6 +1,7 @@
 -- Simple AST Walker for testing purposes
 
 local pprint = require "lib.pprint"
+local stringPad = require "util.stringPad"
 
 ---@nodiscard
 ---@param v any
@@ -44,12 +45,25 @@ function Interpreter.New(astExprBlock)
         GlobalScope = Scope.New()
     }
 
-    table.insert(
-        interpreter.GlobalScope.Variables,
-        Variable.New("print", function(...)
-            io.write("> ", pprint.pformat(...), '\n')
-        end)
-    )
+    interpreter.GlobalScope:SetVariable("print", function(...)
+        local ln = interpreter.GlobalScope:GetVariable("__LINE") or "?"
+        local args = table.pack(...)
+        io.write(("%s | "):format(stringPad(ln, 2)))
+        for i,arg in ipairs(args) do
+            io.write(
+                i ~= 1 and ', ' or '',
+                (pprint.pformat(arg):gsub('\n', "\n   | "))
+            )
+        end
+        io.write('\n')
+    end)
+
+    interpreter.GlobalScope:SetVariable("len", function(v)
+        if type(v) == 'number' then
+            v = tostring(v)
+        end
+        return #v
+    end)
 
     return setmetatable(interpreter, Interpreter)
 end
@@ -63,6 +77,12 @@ end
 ---@return any
 function Interpreter:Interpret()
     return self:interpretExprBlock(self.astExprBlock, self.GlobalScope)
+end
+
+---@private
+---@param sourceRange SourceRange
+function Interpreter:updateDebugGlobals(sourceRange)
+    self.GlobalScope:SetVariable("__LINE", sourceRange.StartPos.LineNumber)
 end
 
 ---@private
@@ -185,6 +205,10 @@ function Interpreter:interpretExprCall(exprCall, scope)
     assert(type(func) == 'function')
     local args = self:interpretExpr(exprCall.Args, scope)
     assert(type(args) == 'table')
+
+    -- before calling debug functions
+    self:updateDebugGlobals(exprCall.SourceRange)
+
     return func(table.unpack(args))
 end
 
@@ -194,8 +218,7 @@ end
 function Interpreter:interpretExprDef(exprDef, scope)
     local name = exprDef.Name
     local value = self:interpretExpr(exprDef.Expr, scope)
-    local var = Variable.New(name, value)
-    table.insert(scope.Variables, var)
+    scope:SetVariable(name, value)
 end
 
 ---@private
@@ -203,11 +226,10 @@ end
 ---@param scope Scope
 function Interpreter:interpretExprAssign(exprAssign, scope)
     if exprAssign.LValue.Kind == 'Name' then
-        for _,var in ipairs(scope.Variables) do
-            if var.Name == exprAssign.LValue.Name then
-                var.Value = self:interpretExpr(exprAssign.Value, scope)
-            end
-        end
+        scope:SetVariable(
+            exprAssign.LValue.Name,
+            self:interpretExpr(exprAssign.Value, scope)
+        )
     elseif exprAssign.LValue.Kind == 'Binary' then
         local _, obj, key = self:interpretExpr(exprAssign.LValue, scope)
         assert(key)
@@ -244,11 +266,9 @@ end
 ---@param scope Scope
 ---@return any
 function Interpreter:interpretExprName(exprName, scope)
-    for _,var in ipairs(scope.Variables) do
-        if var.Name == exprName.Name then
-            return var.Value
-        end
-    end
+    -- before getting debug vars
+    self:updateDebugGlobals(exprName.SourceRange)
+    return scope:GetVariable(exprName.Name)
 end
 
 ---@private

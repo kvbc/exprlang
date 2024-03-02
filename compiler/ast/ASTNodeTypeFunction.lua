@@ -9,9 +9,10 @@ ASTNodeTypeFunction.__index = ASTNodeTypeFunction
 ---@nodiscard
 ---@param paramsType ASTNodeTypeStruct
 ---@param returnType ASTNodeType
+---@param sourceRange SourceRange
 ---@return ASTNodeTypeFunction
-function ASTNodeTypeFunction.New(paramsType, returnType)
-    local node = ASTNodeType.New('function') ---@cast node ASTNodeTypeFunction
+function ASTNodeTypeFunction.New(paramsType, returnType, sourceRange)
+    local node = ASTNodeType.New('function', sourceRange) ---@cast node ASTNodeTypeFunction
     
     node.ParamsType = paramsType
     node.ReturnType = returnType

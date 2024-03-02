@@ -7,9 +7,10 @@ ASTNodeExprBlock.__index = ASTNodeExprBlock
 
 ---@nodiscard
 ---@param expressions ASTNodeExpr[]
+---@param sourceRange SourceRange
 ---@return ASTNodeExprBlock
-function ASTNodeExprBlock.New(expressions)
-    local node = ASTNodeExpr.New('Block') ---@cast node ASTNodeExprBlock
+function ASTNodeExprBlock.New(expressions, sourceRange)
+    local node = ASTNodeExpr.New('Block', sourceRange) ---@cast node ASTNodeExprBlock
     
     node.Expressions = expressions
 

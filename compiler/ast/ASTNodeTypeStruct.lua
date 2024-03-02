@@ -9,9 +9,10 @@ ASTNodeTypeStruct.__index = ASTNodeTypeStruct
 
 ---@nodiscard
 ---@param fields ASTNodeTypeStructField[]
+---@param sourceRange SourceRange
 ---@return ASTNodeTypeStruct
-function ASTNodeTypeStruct.New(fields)
-    local node = ASTNodeType.New('struct') ---@cast node ASTNodeTypeStruct
+function ASTNodeTypeStruct.New(fields, sourceRange)
+    local node = ASTNodeType.New('struct', sourceRange) ---@cast node ASTNodeTypeStruct
 
     node.Fields = fields
     node.String = "["

@@ -7,9 +7,10 @@ ASTNodeExprLiteralNumber.__index = ASTNodeExprLiteralNumber
 
 ---@nodiscard
 ---@param value number
+---@param sourceRange SourceRange
 ---@return ASTNodeExprLiteralNumber
-function ASTNodeExprLiteralNumber.New(value)
-    local node = ASTNodeExprLiteral.New('Number') ---@cast node ASTNodeExprLiteralNumber
+function ASTNodeExprLiteralNumber.New(value, sourceRange)
+    local node = ASTNodeExprLiteral.New('Number', sourceRange) ---@cast node ASTNodeExprLiteralNumber
     
     node.Value = value
     node.String = tostring(value)

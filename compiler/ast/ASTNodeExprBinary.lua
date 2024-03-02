@@ -70,9 +70,10 @@ ASTNodeExprBinary.OpPriority = {
 ---@param opKind BinOpKind
 ---@param opExpr1 ASTNodeExpr
 ---@param opExpr2 ASTNodeExpr
+---@param sourceRange SourceRange
 ---@return ASTNodeExprBinary
-function ASTNodeExprBinary.New(opKind, opExpr1, opExpr2)
-    local node = ASTNodeExpr.New('Binary') ---@cast node ASTNodeExprBinary
+function ASTNodeExprBinary.New(opKind, opExpr1, opExpr2, sourceRange)
+    local node = ASTNodeExpr.New('Binary', sourceRange) ---@cast node ASTNodeExprBinary
     node.OpKind = opKind
     node.OpExpr1 = opExpr1
     node.OpExpr2 = opExpr2

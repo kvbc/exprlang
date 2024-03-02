@@ -19,9 +19,10 @@ ASTNodeExprUnary.Ops = {
 ---@nodiscard
 ---@param opKind UnaryOpKind
 ---@param opExpr ASTNodeExpr
+---@param sourceRange SourceRange
 ---@return ASTNodeExprUnary
-function ASTNodeExprUnary.New(opKind, opExpr)
-    local node = ASTNodeExpr.New('Unary') ---@cast node ASTNodeExprUnary
+function ASTNodeExprUnary.New(opKind, opExpr, sourceRange)
+    local node = ASTNodeExpr.New('Unary', sourceRange) ---@cast node ASTNodeExprUnary
     
     node.OpKind = opKind
     node.OpExpr = opExpr

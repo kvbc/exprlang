@@ -1,3 +1,5 @@
+local ASTNode = require "ast.ASTNode"
+
 ---@alias ASTNodeExprKind
 ---| 'Block'
 ---| 'Call'
@@ -15,12 +17,11 @@ local ASTNodeExpr = {}
 ASTNodeExpr.__index = ASTNodeExpr
 
 ---@param kind ASTNodeExprKind
-function ASTNodeExpr.New(kind)
-    ---@type ASTNodeExpr
-    local expr = {
-        Kind = kind;
-    }
-    return setmetatable(expr, ASTNodeExpr)
+---@param sourceRange SourceRange
+function ASTNodeExpr.New(kind, sourceRange)
+    local node = ASTNode.New(sourceRange) ---@cast node ASTNodeExpr
+    node.Kind = kind
+    return setmetatable(node, ASTNodeExpr)
 end
 
 return ASTNodeExpr

@@ -4,6 +4,7 @@ fib := fun [n num] -> num {
 print[fib[15]]
 
 add := fun [a num, b num] -> num {
+	print["add args:", args]
 	a + b
 }
 print[add[3, 5]]
@@ -13,6 +14,15 @@ table := [
 		[1, 2, 3]
 	]
 ]
+print[len["test string"]]
+print[len[345]]
+print[len[[1,2,3,4,5]]]
+print[len[table]]
+
 print[table]
+table.test = 5
 table.(1).(1).(4) = 5
+table.(1).(1).(5) = table.(1).(1).(2)
 print[table]
+
+print["we are on line", __LINE]

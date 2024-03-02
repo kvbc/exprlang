@@ -10,6 +10,7 @@ SourceRange.__index = SourceRange
 ---@nodiscard
 ---@param startPos SourcePos
 ---@param endPos SourcePos?
+---@return SourceRange
 function SourceRange.New(startPos, endPos)
     ---@type SourceRange
     local sourceRange = {
@@ -17,6 +18,17 @@ function SourceRange.New(startPos, endPos)
         EndPos = endPos or startPos;
     }
     return setmetatable(sourceRange, SourceRange)
+end
+
+---@nodiscard
+---@param startRange SourceRange
+---@param endRange SourceRange
+---@return SourceRange
+function SourceRange.FromRanges(startRange, endRange)
+    return SourceRange.New(
+        startRange.StartPos,
+        endRange.EndPos
+    )
 end
 
 --[[
@@ -38,7 +50,6 @@ end
       | lol \n
       | lol
 ]]
---TODO: split message
 ---@nodiscard
 ---@param source Source
 ---@param msg string?

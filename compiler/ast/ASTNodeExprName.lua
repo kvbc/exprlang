@@ -7,9 +7,10 @@ ASTNodeExprName.__index = ASTNodeExprName
 
 ---@nodiscard
 ---@param name string
+---@param sourceRange SourceRange
 ---@return ASTNodeExprName
-function ASTNodeExprName.New(name)
-    local node = ASTNodeExpr.New('Name') ---@cast node ASTNodeExprName
+function ASTNodeExprName.New(name, sourceRange)
+    local node = ASTNodeExpr.New('Name', sourceRange) ---@cast node ASTNodeExprName
     
     node.Name = name;
     node.String = name
