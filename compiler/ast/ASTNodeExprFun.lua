@@ -3,7 +3,7 @@ local ASTNodeExpr = require "ast.ASTNodeExpr"
 ---@class ASTNodeExprFun : ASTNodeExpr
 ---@field FunctionType ASTNodeTypeFunction?
 ---@field FunctionBody ASTNodeExprBlock
-local ASTNodeExprFun = {}
+local ASTNodeExprFun = setmetatable({}, ASTNodeExpr)
 ASTNodeExprFun.__index = ASTNodeExprFun
 
 ---@nodiscard

@@ -39,16 +39,18 @@ require "interpret.Interpreter"
 require "interpret.Variable" 
 local dedent = require "lib.dedent"
 local pprint = require "lib.pprint"
+local ASTNodeExpr = require "ast.ASTNodeExpr"
 
 -- func [num] -> num = { a }
-local f = io.open('main.ry', "r")
+local filename = 'test/main.ry'
+local f = io.open(filename, "r")
 local src = "empty file"
 if f then
     src = f:read("a")
     f:close() 
 end
 
-local source = Source.New(src)
+local source = Source.New(src, filename)
 local sourcePos = SourcePos.New(3, 5)
 
 -- print(sourcePos:ToString(dedent [[
@@ -80,16 +82,16 @@ print('\nTokens\n')
 lexer:PrintTokensCompact(tokens)
 
 local parser = Parser.New(source, tokens)
-local ast = parser:parse()
+local ast = parser:Parse()
 print('\nParse Errors\n')
 printErrors(parser.Errors)
 print('\nAST\n')
-pprint(ast)
+-- pprint(ast)
 
 -- Lex("test")
 
 if ast then
-    local interpreter = Interpreter.New(ast)
+    local interpreter = Interpreter.New(ast, filename)
     print('\nGlobal Scope\n')
     print(pprint.pformat(interpreter.GlobalScope, { show_function = true }))
     print('\nOutput\n')

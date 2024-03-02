@@ -1,0 +1,7 @@
+other := import["test/other.ry"]
+
+print["hello from main"]
+
+other.func[]
+
+print["secret: ", other.secret]

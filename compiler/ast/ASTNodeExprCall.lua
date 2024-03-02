@@ -3,7 +3,7 @@ local ASTNodeExpr = require "ast.ASTNodeExpr"
 ---@class ASTNodeExprCall : ASTNodeExpr
 ---@field Func ASTNodeExpr
 ---@field Args ASTNodeExprLiteralStruct
-local ASTNodeExprCall = {}
+local ASTNodeExprCall = setmetatable({}, ASTNodeExpr)
 ASTNodeExprCall.__index = ASTNodeExprCall
 
 ---@nodiscard

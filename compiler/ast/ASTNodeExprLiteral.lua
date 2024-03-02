@@ -7,7 +7,7 @@ local ASTNodeExpr = require "ast.ASTNodeExpr"
 
 ---@class ASTNodeExprLiteral : ASTNodeExpr
 ---@field LiteralKind ASTNodeExprLiteralKind
-local ASTNodeExprLiteral = {}
+local ASTNodeExprLiteral = setmetatable({}, ASTNodeExpr)
 ASTNodeExprLiteral.__index = ASTNodeExprLiteral
 
 ---@nodiscard

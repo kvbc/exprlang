@@ -2,7 +2,7 @@ local ASTNodeExprLiteral = require "ast.ASTNodeExprLiteral"
 
 ---@class ASTNodeExprLiteralString : ASTNodeExprLiteral
 ---@field Value string
-local ASTNodeExprLiteralString = {}
+local ASTNodeExprLiteralString = setmetatable({}, ASTNodeExprLiteral)
 ASTNodeExprLiteralString.__index = ASTNodeExprLiteralString
 
 ---@nodiscard

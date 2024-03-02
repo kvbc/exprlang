@@ -36,8 +36,9 @@ Interpreter.__index = Interpreter
 
 ---@nodiscard
 ---@param astExprBlock ASTNodeExprBlock
+---@param filename string?
 ---@return Interpreter
-function Interpreter.New(astExprBlock)
+function Interpreter.New(astExprBlock, filename)
     ---@type Interpreter
     local interpreter = {
         astExprBlock = astExprBlock;
@@ -45,25 +46,61 @@ function Interpreter.New(astExprBlock)
         GlobalScope = Scope.New()
     }
 
-    interpreter.GlobalScope:SetVariable("print", function(...)
+    local function gPrint(...)
         local ln = interpreter.GlobalScope:GetVariable("__LINE") or "?"
         local args = table.pack(...)
-        io.write(("%s | "):format(stringPad(ln, 2)))
+        local prebarStr = ("%s%s"):format(
+            filename and stringPad(filename, 15) .. ' ' or '',
+            stringPad(ln, 2)
+        )
+        io.write(("%s | "):format(prebarStr))
         for i,arg in ipairs(args) do
             io.write(
                 i ~= 1 and ', ' or '',
-                (pprint.pformat(arg):gsub('\n', "\n   | "))
+                (pprint.pformat(arg)
+                    :gsub('\n', ("\n%s | "):format(
+                        (" "):rep(#prebarStr)
+                    ))
+                )
             )
         end
         io.write('\n')
-    end)
+    end
 
-    interpreter.GlobalScope:SetVariable("len", function(v)
+    local function gLen(v)
         if type(v) == 'number' then
             v = tostring(v)
         end
         return #v
-    end)
+    end
+
+    local function gError(...)
+        gPrint("[ERROR] ", ...)
+    end
+
+    local function gImport(filename)
+        local f = io.open(filename, "r")
+        if not f then
+            return gError(('Could not import file "%s"'):format(filename))
+        end
+        local src = f:read('a')
+        f:close()
+        local source = Source.New(src, filename)
+        local lexer = Lexer.New(source)
+        local tokens = lexer:Lex()
+        local parser = Parser.New(source, tokens)
+        local ast = parser:Parse()
+        if not ast then
+            return gError(('Could not parse file "%s"'):format(filename))
+        end
+        local interpreter = Interpreter.New(ast, filename)
+        return interpreter:Interpret()
+    end
+
+    interpreter.GlobalScope:SetVariable("print", gPrint)
+    interpreter.GlobalScope:SetVariable("error", gError)
+    interpreter.GlobalScope:SetVariable("len", gLen)
+    interpreter.GlobalScope:SetVariable("import", gImport)
 
     return setmetatable(interpreter, Interpreter)
 end
@@ -252,9 +289,20 @@ function Interpreter:interpretExprLiteral(exprLit, scope)
     elseif exprLit.LiteralKind == 'Struct' then
         ---@cast exprLit ASTNodeExprLiteralStruct
         local values = {}
-        for _,expr in ipairs(exprLit.Values) do
-            local value = self:interpretExpr(expr, scope)
-            table.insert(values, value)
+        for _,field in ipairs(exprLit.Fields) do
+            local value = self:interpretExpr(field.Value, scope)
+            local key = field.Name
+            if key then
+                if type(key) == 'string' then
+                    values[key] = value
+                else
+                    local keyValue = self:interpretExpr(key, scope)
+                    assert(keyValue ~= nil)
+                    values[keyValue] = value
+                end
+            else
+                table.insert(values, value)
+            end
         end
         return values
     end

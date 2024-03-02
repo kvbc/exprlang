@@ -7,7 +7,7 @@ local ASTNodeExpr = require "ast.ASTNodeExpr"
 ---@class ASTNodeExprUnary : ASTNodeExpr
 ---@field OpKind UnaryOpKind
 ---@field OpExpr ASTNodeExpr
-local ASTNodeExprUnary = {}
+local ASTNodeExprUnary = setmetatable({}, ASTNodeExpr)
 ASTNodeExprUnary.__index = ASTNodeExprUnary
 
 ---@type UnaryOpKind[]

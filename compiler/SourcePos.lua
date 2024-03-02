@@ -1,4 +1,5 @@
 local dedent = require "lib.dedent"
+local stringPad = require "util.stringPad"
 
 ---@class SourcePos
 ---@field LineNumber integer
@@ -73,13 +74,19 @@ function SourcePos:ToString(source, msg, endColumnIndex, pointerChar)
 
     endColumnIndex = math.min(endColumnIndex, source:GetColumnCount(self.LineNumber))
 
-    local lineNumberLen = #tostring(self.LineNumber)
-    local prefixSpaces = (" "):rep(lineNumberLen)
     local sourceLine = source:GetLine(self.LineNumber)
+    local filename = source.Filename
+    local prefixSpaces = (" "):rep(#tostring(filename or self.LineNumber))
 
-    local str = string.format(
-        "%d | %s",
-        self.LineNumber, sourceLine
+    local str = ""
+
+    if filename then
+        str = str .. ("%s |\n"):format(filename)
+    end
+
+    str = str .. string.format(
+        "%s | %s",
+        stringPad(self.LineNumber, #prefixSpaces), sourceLine
     )
 
     if msg then

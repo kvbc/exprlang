@@ -1,0 +1,10 @@
+func := fun {
+	print["whats up!"]
+}
+
+secret := 9194
+
+[
+	func: func,
+	secret: secret
+]

@@ -32,7 +32,7 @@ end
 ---@field OpKind BinOpKind
 ---@field OpExpr1 ASTNodeExpr
 ---@field OpExpr2 ASTNodeExpr
-local ASTNodeExprBinary = {}
+local ASTNodeExprBinary = setmetatable({}, ASTNodeExpr)
 ASTNodeExprBinary.__index = ASTNodeExprBinary
 
 ---@type BinOpKind[]

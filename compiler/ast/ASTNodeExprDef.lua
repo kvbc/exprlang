@@ -4,7 +4,7 @@ local ASTNodeExpr = require "ast.ASTNodeExpr"
 ---@field Name string
 ---@field Type ASTNodeType
 ---@field Expr ASTNodeExpr
-local ASTNodeExprDef = {}
+local ASTNodeExprDef = setmetatable({}, ASTNodeExpr)
 ASTNodeExprDef.__index = ASTNodeExprDef
 
 ---@nodiscard

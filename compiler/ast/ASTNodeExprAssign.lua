@@ -3,7 +3,7 @@ local ASTNodeExpr = require "ast.ASTNodeExpr"
 ---@class ASTNodeExprAssign : ASTNodeExpr
 ---@field LValue ASTNodeExprName | ASTNodeExprBinary
 ---@field Value ASTNodeExpr
-local ASTNodeExprAssign = {}
+local ASTNodeExprAssign = setmetatable({}, ASTNodeExpr)
 ASTNodeExprAssign.__index = ASTNodeExprAssign
 
 ---@nodiscard

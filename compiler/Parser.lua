@@ -43,7 +43,7 @@ end
 
 ---@nodiscard
 ---@return ASTNodeExprBlock?
-function Parser:parse()
+function Parser:Parse()
     return self:tryParseExprBlock(true)
 end
 
@@ -129,8 +129,8 @@ function Parser:tryParseExpr(prevBinOpPriority)
                 or self:tryParseExprName()
 
         if expr then
-            expr = self:tryParseExprCall(expr) or expr
             expr = self:tryParseExprBinary(expr, prevBinOpPriority) or expr
+            expr = self:tryParseExprCall(expr) or expr
             expr = self:tryParseExprAssign(expr) or expr
         end
 
@@ -405,6 +405,7 @@ end
 
 --[[
     [1, 2, 3]
+    [1, a: 3, 4]
 --]]
 ---@private
 ---@nodiscard
@@ -418,25 +419,64 @@ function Parser:tryParseExprLiteralStruct()
 
             self:advance()
 
-            ---@type ASTNodeExpr[]
-            local exprs = {}
+            ---@type ASTNodeExprLiteralStructField[]
+            local fields = {}
             while true do
                 if self:isToken(']') then
                     break
                 end
-                if #exprs > 0 then
+                if #fields > 0 then
                     if not (self:isToken(',') or self:isToken(';')) then
                         local err = self:sourceRange():ToString(self.source, 'Expected separator <,> or <;>')
                         err = err .. '\n' .. startToken.SourceRange:ToString(self.source, 'For "["')
-                        error(err)
+                        return error(err)
                     end
                     self:advance()
                 end
-                local expr = self:tryParseExpr()
+
+                ---@type (string | ASTNodeExpr)?
+                local name
+                local nextTokenOfs = 0
+
+                local token = self:token()
+                if token and token.Type == 'name' then
+                    nextTokenOfs = 1
+                    name = token.Value
+                end
+                
+                if not name then
+                    name = self:tryParseExpr()
+                end
+
+                ---@type ASTNodeExpr?
+                local expr
+                if name then
+                    local nextToken = self:token(nextTokenOfs)
+                    if nextToken and nextToken:Is(':') then
+                        self:advance()
+                        if token and token.Type == 'name' then
+                            self:advance()
+                        end
+                    else
+                        if type(name) ~= 'string' then
+                            expr = name
+                        end
+                        name = nil
+                    end
+                end
+
+                expr = expr or self:tryParseExpr()
                 if expr then
-                    table.insert(exprs, expr)
+                    ---@type ASTNodeExprLiteralStructField
+                    local field = {
+                        Name = name;
+                        Value = expr;
+                    }
+                    table.insert(fields, field)
                 else
-                    break
+                    if name then
+                        error(self:sourceRange():ToString(self.source, 'Expected expression'))
+                    end
                 end
             end
 
@@ -444,7 +484,7 @@ function Parser:tryParseExprLiteralStruct()
                 local endSourceRange = self:sourceRange()
                 self:advance()
                 return ASTNodeExprLiteralStruct.New(
-                    exprs,
+                    fields,
                     SourceRange.FromRanges(startSourceRange, endSourceRange)
                 )
             else
@@ -496,6 +536,10 @@ end
 ---@return ASTNodeExprCall?
 function Parser:tryParseExprCall(expr)
     return self:backtrack(function(error)
+        if not expr:IsCallable() then
+            return
+        end
+
         local func = expr
 
         local args = self:tryParseExprLiteralStruct()
