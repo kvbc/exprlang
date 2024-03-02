@@ -1,13 +1,14 @@
 local pprint = require "lib.pprint"
 
 local ASTNode = require "ast.ASTNode"
-local ASTNodeExpr = require "ast.ASTNodeExpr"
+local ASTNodeExpr = require "ast.ASTNodeExpr" ()
 local ASTNodeExprBlock = require "ast.ASTNodeExprBlock"
 local ASTNodeExprName = require "ast.ASTNodeExprName"
 local ASTNodeExprDef = require "ast.ASTNodeExprDef"
 local ASTNodeExprCall = require "ast.ASTNodeExprCall"
 local ASTNodeExprUnary = require "ast.ASTNodeExprUnary"
 local ASTNodeExprBinary = require "ast.ASTNodeExprBinary"
+local ASTNodeExprCast = require "ast.ASTNodeExprCast"
 local ASTNodeExprAssign = require "ast.ASTNodeExprAssign"
 local ASTNodeTypeStruct = require "ast.ASTNodeTypeStruct"
 local ASTNodeType = require "ast.ASTNodeType"
@@ -16,7 +17,6 @@ local ASTNodeExprLiteral = require "ast.ASTNodeExprLiteral"
 local ASTNodeExprLiteralNumber = require "ast.ASTNodeExprLiteralNumber"
 local ASTNodeExprLiteralString = require "ast.ASTNodeExprLiteralString"
 local ASTNodeExprLiteralStruct = require "ast.ASTNodeExprLiteralStruct"
-local ASTNodeExprFun = require "ast.ASTNodeExprFun"
 
 ---@class Parser
 ---@field private source Source
@@ -122,9 +122,9 @@ function Parser:tryParseExpr(prevBinOpPriority)
         ---@type ASTNodeExpr?
         local expr = self:tryParseGroupedExpr()
                 or self:tryParseExprBlock()
-                or self:tryParseExprFun()
                 or self:tryParseExprDef()
                 or self:tryParseExprUnary()
+                or self:tryParseExprCast()
                 or self:tryParseExprLiteral()
                 or self:tryParseExprName()
 
@@ -162,6 +162,31 @@ function Parser:tryParseExprName()
     end
     assert(token)
     return ASTNodeExprName.New(name, token.SourceRange)
+end
+
+--[[
+    num a
+--]]
+---@private
+---@nodiscard
+---@return ASTNodeExprCast?
+function Parser:tryParseExprCast()
+    return self:backtrack(function (error)
+        local type = self:tryParseType()
+        if not type then
+            return
+        end
+
+        local expr = self:tryParseExpr()
+        if not expr then
+            return error(self:sourceRange():ToString(self.source, 'Expected cast expression'))
+        end
+
+        return ASTNodeExprCast.New(
+            type, expr,
+            SourceRange.FromRanges(type.SourceRange, expr.SourceRange)
+        )
+    end)
 end
 
 --[[
@@ -548,36 +573,6 @@ function Parser:tryParseExprCall(expr)
         return ASTNodeExprCall.New(
             func, args,
             SourceRange.FromRanges(expr.SourceRange, args.SourceRange)
-        )
-    end)
-end
-
---[[
-    fun [num] -> num { 3 + 5 }
---]]
----@private
----@nodiscard
----@return ASTNodeExprFun?
-function Parser:tryParseExprFun()
-    return self:backtrack(function(error)
-        if not self:isToken('fun') then
-            return
-        end
-
-        local startSourceRange = self:sourceRange()
-
-        self:advance()
-
-        local funcType = self:tryParseTypeFunction()
-        local funcBody = self:tryParseExprBlock()
-        if not funcBody then
-            error(self:sourceRange():ToString(self.source, 'Expected function body'))
-            return
-        end
-
-        return ASTNodeExprFun.New(
-            funcType, funcBody,
-            SourceRange.FromRanges(startSourceRange, funcBody.SourceRange)
         )
     end)
 end

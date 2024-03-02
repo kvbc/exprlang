@@ -1,4 +1,4 @@
-local ASTNodeExpr = require "ast.ASTNodeExpr"
+local ASTNodeExpr = require "ast.ASTNodeExpr" ()
 
 ---@class ASTNodeExprDef : ASTNodeExpr
 ---@field Name string

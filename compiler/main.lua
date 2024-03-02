@@ -86,7 +86,7 @@ local ast = parser:Parse()
 print('\nParse Errors\n')
 printErrors(parser.Errors)
 print('\nAST\n')
--- pprint(ast)
+pprint(ast)
 
 -- Lex("test")
 

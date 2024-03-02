@@ -2,6 +2,13 @@ other := import["test/other.ry"]
 
 print["hello from main"]
 
-other.func[]
+func := other.func
+func[]
 
 print["secret: ", other.secret]
+
+a := 4
+b := []->[]a
+print[b[]]
+a = 7
+print[b[]]

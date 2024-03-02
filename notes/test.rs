@@ -57,3 +57,29 @@ fun [num] -> num {
 }
 
 */
+
+fun {
+    a + b
+}
+
+add := fun 3 + 5
+add := fun print["adding..."]
+
+add := fun [a num, b num] -> num { a + b }
+
+add := ([a num, b num] -> num) fun a + b
+
+add := (fun a + b) as [a num, b num] -> num
+
+add := cast [a num, b num] -> num fun a + b
+
+add := cast[[a num, b num] -> num, fun a + b]
+
+add := (a + b) as [a num, b num] -> num
+
+add := [a num, b num] -> num { a + b }
+
+add := [a num, b num] -> num (a + b)
+
+b bool = true
+n num = num b

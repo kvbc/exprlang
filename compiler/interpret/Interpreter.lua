@@ -1,5 +1,7 @@
 -- Simple AST Walker for testing purposes
 
+local ASTNodeExpr, ASTNodeExprKind = require "ast.ASTNodeExpr" ()
+
 local pprint = require "lib.pprint"
 local stringPad = require "util.stringPad"
 
@@ -126,33 +128,30 @@ end
 ---@param expr ASTNodeExpr
 ---@param scope Scope
 function Interpreter:interpretExpr(expr, scope)
-    if expr.Kind == 'Block' then
-        ---@cast expr ASTNodeExprBlock
-        return self:interpretExprBlock(expr, scope)
-    elseif expr.Kind == 'Call' then
-        ---@cast expr ASTNodeExprCall
-        return self:interpretExprCall(expr, scope)
-    elseif expr.Kind == 'Def' then
-        ---@cast expr ASTNodeExprDef
-        return self:interpretExprDef(expr, scope)
-    elseif expr.Kind == 'Literal' then
-        ---@cast expr ASTNodeExprLiteral
-        return self:interpretExprLiteral(expr, scope)
-    elseif expr.Kind == 'Name' then
-        ---@cast expr ASTNodeExprName
-        return self:interpretExprName(expr, scope)
-    elseif expr.Kind == 'Fun' then
-        ---@cast expr ASTNodeExprFun
-        return self:interpretExprFun(expr, scope)
-    elseif expr.Kind == 'Assign' then
-        ---@cast expr ASTNodeExprAssign
-        return self:interpretExprAssign(expr, scope)
-    elseif expr.Kind == 'Unary' then
-        ---@cast expr ASTNodeExprUnary
-        return self:interpretExprUnary(expr, scope)
-    elseif expr.Kind == 'Binary' then
-        ---@cast expr ASTNodeExprBinary
-        return self:interpretExprBinary(expr, scope)
+    for _,exprKind in pairs(ASTNodeExprKind) do
+        if expr.Kind == exprKind then
+            return Interpreter['interpretExpr' .. exprKind](self, expr, scope)
+        end
+    end
+end
+
+---@private
+---@nodiscard
+---@param exprCast ASTNodeExprCast
+---@param scope Scope
+---@return any
+function Interpreter:interpretExprCast(exprCast, scope)
+    assert(exprCast.Type.Kind == 'function', 'non-function casts not implemented')
+    local funcType = exprCast.Type ---@cast funcType ASTNodeTypeFunction
+    return function(...)
+        local args = table.pack(...)
+        scope = Scope.New(scope)
+        for i,field in ipairs(funcType.ParamsType.Fields) do
+            if field.Name then
+                scope:SetVariable(field.Name, args[i])
+            end
+        end
+        return self:interpretExpr(exprCast.Expr, scope)
     end
 end
 
@@ -317,24 +316,4 @@ function Interpreter:interpretExprName(exprName, scope)
     -- before getting debug vars
     self:updateDebugGlobals(exprName.SourceRange)
     return scope:GetVariable(exprName.Name)
-end
-
----@private
----@param exprFun ASTNodeExprFun
----@param scope Scope
----@nodiscard
----@return function
-function Interpreter:interpretExprFun(exprFun, scope)
-    return function(...)
-        if exprFun.FunctionType then
-            local args = table.pack(...)
-            scope = Scope.New(scope)
-            for i,field in ipairs(exprFun.FunctionType.ParamsType.Fields) do
-                if field.Name then
-                    scope:SetVariable(field.Name, args[i])
-                end
-            end
-        end
-        return self:interpretExpr(exprFun.FunctionBody, scope)
-    end
 end

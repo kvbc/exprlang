@@ -23,7 +23,6 @@ end
 ---@param str string
 local function isKeyword(str)
     return str == 'num'
-        or str == 'fun'
         or str == 'not'
         or str == 'or'
         or str == 'and'
@@ -147,7 +146,7 @@ function Lexer:tryLexNumberLiteral(allowDot)
             allowDot = true
         end
         local startSourceIndex = self.SourceIndex
-        while tonumber(self:char()) do -- char is digit
+        while self:char() and tonumber(self:char()) do -- char is digit
             self:advance()
         end
         local endSourceIndex = self.SourceIndex - 1

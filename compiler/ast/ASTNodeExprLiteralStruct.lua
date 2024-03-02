@@ -18,7 +18,7 @@ function ASTNodeExprLiteralStruct.New(fields, sourceRange)
     node.String = "["
     
     for i,field in ipairs(fields) do
-        local name = field.Name or ''
+        local name = field.Name
         if field.Name and type(field.Name) ~= 'string' then
             name = field.Name.String
         end
