@@ -13,5 +13,8 @@ function ASTNodeExprAssign.New(name, value)
     local node = ASTNodeExpr.New('Assign')
     node.Name = name
     node.Value = value
+
+    node.String = ("%s = %s"):format(name, value.String)
+
     return setmetatable(node, ASTNodeExprAssign)
 end

@@ -44,6 +44,8 @@ end
 ---@param msg string?
 ---@return string
 function SourceRange:ToString(source, msg)
+    msg = debug.traceback(msg)
+
     local str = ""
 
     local startLineNumber = self.StartPos.LineNumber

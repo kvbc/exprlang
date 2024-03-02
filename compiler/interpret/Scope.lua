@@ -16,3 +16,16 @@ function Scope.New(scope)
     scope = scope and deepcopy(scope) or newScope
     return setmetatable(scope, Scope)
 end
+
+---@param name string
+---@param value any
+function Scope:SetVariable(name, value)
+    for _,var in ipairs(self.Variables) do
+        if var.Name == name then
+            var.Value = value
+            return
+        end
+    end
+    local var = Variable.New(name, value)
+    table.insert(self.Variables, var)
+end

@@ -48,4 +48,12 @@ Functions:
 
 
 
+Is 'fun' an arith op?
+fun {
+    print['hello']
+}
+fun [num] -> num {
+
+}
+
 */

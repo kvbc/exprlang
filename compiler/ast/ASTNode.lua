@@ -1,1 +1,2 @@
 ---@class ASTNode
+---@field String string

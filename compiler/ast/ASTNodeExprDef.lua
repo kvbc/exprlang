@@ -16,5 +16,6 @@ function ASTNodeExprDef.New(name, type, expr)
     node.Name = name;
     node.Type = type;
     node.Expr = expr;
+    node.String = ("%s %s = %s"):format(name, type.String, expr.String)
     return setmetatable(node, ASTNodeExprDef)
 end

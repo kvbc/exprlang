@@ -66,6 +66,8 @@ end
 ---@param pointerChar string?
 ---@return string
 function SourcePos:ToString(source, msg, endColumnIndex, pointerChar)
+    msg = debug.traceback(msg)
+
     endColumnIndex = endColumnIndex or self.Column
     pointerChar = pointerChar or '^'
 

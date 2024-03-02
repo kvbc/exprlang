@@ -10,5 +10,6 @@ function ASTNodeExprLiteralNumber.New(value)
     ---@type ASTNodeExprLiteralNumber
     local node = ASTNodeExprLiteral.New('Number')
     node.Value = value
+    node.String = tostring(value)
     return setmetatable(node, ASTNodeExprLiteralNumber)
 end

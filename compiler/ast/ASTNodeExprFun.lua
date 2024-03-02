@@ -13,5 +13,9 @@ function ASTNodeExprFun.New(functionType, functionBody)
     local node = ASTNodeExpr.New('Fun')
     node.FunctionType = functionType;
     node.FunctionBody = functionBody;
+    node.String = ("fun %s %s"):format(
+        functionType and functionType.String or "",
+        functionBody.String
+    )
     return setmetatable(node, ASTNodeExprFun)
 end

@@ -14,8 +14,9 @@ ASTNodeType.__index = ASTNodeType
 ---@return ASTNodeType
 function ASTNodeType.New(kind)
     ---@type ASTNodeType
-    local type = {
+    local node = {
         Kind = kind;
     }
-    return setmetatable(type, ASTNodeType)
+    node.String = kind
+    return setmetatable(node, ASTNodeType)
 end

@@ -6,6 +6,8 @@
 ---| 'Name'
 ---| 'Fun'
 ---| 'Assign'
+---| 'Unary'
+---| 'Binary'
 
 ---@class ASTNodeExpr : ASTNode
 ---@field Kind ASTNodeExprKind

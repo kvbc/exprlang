@@ -6,6 +6,8 @@ require "ast.ASTNodeExprBlock"
 require "ast.ASTNodeExprName"
 require "ast.ASTNodeExprDef"
 require "ast.ASTNodeExprCall"
+require "ast.ASTNodeExprUnary"
+require "ast.ASTNodeExprBinary"
 require "ast.ASTNodeExprAssign"
 require "ast.ASTNodeType"
 require "ast.ASTNodeTypeStruct"
@@ -113,30 +115,103 @@ end
 --]]
 ---@private
 ---@nodiscard
+---@param prevBinOpPriority integer?
 ---@return ASTNodeExpr?
-function Parser:tryParseExpr()
+function Parser:tryParseExpr(prevBinOpPriority)
     return self:backtrack(function(error)
         ---@type ASTNodeExpr?
         local expr = self:tryParseExprBlock()
-                or self:tryParseExprLiteral()
                 or self:tryParseExprFun()
                 or self:tryParseExprDef()
                 or self:tryParseExprAssign()
-                or self:tryParseExprName()
-        return expr and (self:tryParseExprCall(expr) or expr)
+                or self:tryParseExprUnary()
+                or self:tryParseExprLiteral()
+        if not expr then
+            local name = self:tryParseName()
+            if name then
+                expr = ASTNodeExprName.New(name)
+            end
+        end
+        if expr then
+            return self:tryParseExprBinary(expr, prevBinOpPriority)
+                or self:tryParseExprCall(expr)
+                or expr
+        end
     end)
 end
 
 ---@private
 ---@nodiscard
----@return ASTNodeExprName?
-function Parser:tryParseExprName()
+---@return string?
+function Parser:tryParseName()
     local token = self:token()
     if token and token.Type == 'name' then
         self:advance()
-        local name = token.Value
-        return ASTNodeExprName.New(name)
+        return token.Value
     end
+end
+
+--[[
+    -a
+--]]
+---@private
+---@nodiscard
+---@return ASTNodeExprUnary?
+function Parser:tryParseExprUnary()
+    return self:backtrack(function (error)
+        for _,op in ipairs(ASTNodeExprUnary.Ops) do
+            if self:isToken(op) then
+                self:advance()
+                
+                local expr = self:tryParseExpr()
+                if not expr then
+                    return error(self:sourceRange():ToString(self.source, "Expected expression"))
+                end
+
+                return ASTNodeExprUnary.New(op, expr)
+            end
+        end
+    end)
+end
+
+--[[
+    a + b
+--]]
+---@private
+---@nodiscard
+---@param expr ASTNodeExpr
+---@param prevPriority integer?
+---@return ASTNodeExprBinary?
+function Parser:tryParseExprBinary(expr, prevPriority)
+    return self:backtrack(function (error)
+        local opExpr1 = expr
+
+        ---@type BinOpKind?
+        local opKind
+        for _,op in ipairs(ASTNodeExprBinary.Ops) do
+            if self:isToken(op) then
+                self:advance()
+                opKind = op
+                break
+            end
+        end
+        if not opKind then
+            return
+        end
+
+        local priority = ASTNodeExprBinary.OpPriority[opKind]
+        if prevPriority and priority < prevPriority then
+            return
+        end
+
+        local opExpr2 = self:tryParseExpr(priority)
+        if not opExpr2 then
+            return error(self:sourceRange():ToString(self.source, "Expected second operand expression"))
+        end
+        
+        local newExpr = ASTNodeExprBinary.New(opKind, opExpr1, opExpr2)
+        return self:tryParseExprBinary(newExpr) or newExpr
+    end)
 end
 
 ---@private
@@ -212,7 +287,8 @@ function Parser:tryParseExprDef()
                 if self:isToken('=') then
                     self:advance()                
                 else
-                    error(self:sourceRange():ToString(self.source, 'Expected "="'))
+                    -- error(self:sourceRange():ToString(self.source, 'Expected "="'))
+                    return
                 end
             end
         end
@@ -334,15 +410,16 @@ end
 --]]
 ---@private
 ---@nodiscard
----@param func ASTNodeExpr
+---@param expr ASTNodeExpr
 ---@return ASTNodeExprCall?
-function Parser:tryParseExprCall(func)
+function Parser:tryParseExprCall(expr)
     return self:backtrack(function(error)
-        -- self:error(self:sourceRange():ToString(self.source, 'hier'))
+        local func = expr
+
         local args = self:tryParseExprLiteralStruct()
-        if args then
-            return ASTNodeExprCall.New(func, args)
-        end
+        if not args then return end
+
+        return ASTNodeExprCall.New(func, args)
     end)
 end
 
@@ -399,6 +476,7 @@ end
     [num]
     [num, num]
     [num; num]
+    [a num; b num]
 --]]
 ---@private
 ---@nodiscard
@@ -411,7 +489,7 @@ function Parser:tryParseTypeStruct()
 
             self:advance()
 
-            ---@type ASTNodeType[]
+            ---@type ASTNodeTypeStructField[]
             local fields = {}
             while true do
                 if self:isToken(']') then
@@ -425,9 +503,15 @@ function Parser:tryParseTypeStruct()
                     end
                     self:advance()
                 end
+                local name = self:tryParseName()
                 local type = self:tryParseType()
                 if type then
-                    table.insert(fields, type)
+                    ---@type ASTNodeTypeStructField
+                    local field = {
+                        Type = type;
+                        Name = name;
+                    }
+                    table.insert(fields, field)
                 else
                     break
                 end
@@ -436,10 +520,10 @@ function Parser:tryParseTypeStruct()
             if self:isToken(']') then
                 self:advance()
                 return ASTNodeTypeStruct.New(fields)
-            else
-                local err = self:sourceRange():ToString(self.source, 'Expected closing bracket "]"')
-                err = err .. '\n' .. startToken.SourceRange:ToString(self.source, 'For "["')
-                error(err)
+            -- else
+            --     local err = self:sourceRange():ToString(self.source, 'Expected closing bracket "]"')
+            --     err = err .. '\n' .. startToken.SourceRange:ToString(self.source, 'For "["')
+            --     error(err)
             end
         end
     end)

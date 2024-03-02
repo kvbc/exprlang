@@ -13,5 +13,6 @@ function ASTNodeExprCall.New(func, args)
     local node = ASTNodeExpr.New('Call')
     node.Func = func;
     node.Args = args;
+    node.String = func.String .. args.String
     return setmetatable(node, ASTNodeExprCall)
 end

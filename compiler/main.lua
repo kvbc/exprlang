@@ -48,10 +48,26 @@ local src = [[
 # }
 # test[]
 
-a := 3
-a = 7
-a = 3
-print[a]
+# a := 3
+# a = 7
+# a = 2 * 3 + 5 * 3 + 5 - 3
+# a = - not a
+# print[a]
+
+# fib := fun [n num] -> num {
+#     n + 5
+# }
+# print[fib[6] ]
+
+fib := fun [n num] -> num {
+    n <= 1 and 1 or fib[n-1] + fib[n-2]
+}   
+printn := fun [n num] -> num {
+    print[n]
+    n
+}
+# print[fib[1] ]
+print[1 <= 1 and 1 or printn[999] + printn[9999] ]
 
 ]]
 

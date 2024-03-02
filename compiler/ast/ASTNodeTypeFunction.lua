@@ -10,8 +10,9 @@ ASTNodeTypeFunction.__index = ASTNodeTypeFunction
 ---@return ASTNodeTypeFunction
 function ASTNodeTypeFunction.New(paramsType, returnType)
     ---@type ASTNodeTypeFunction
-    local typeStruct = ASTNodeType.New('function')
-    typeStruct.ParamsType = paramsType
-    typeStruct.ReturnType = returnType
-    return setmetatable(typeStruct, ASTNodeTypeFunction)
+    local node = ASTNodeType.New('function')
+    node.ParamsType = paramsType
+    node.ReturnType = returnType
+    node.String = ("%s -> %s"):format(paramsType.String, returnType.String)
+    return setmetatable(node, ASTNodeTypeFunction)
 end

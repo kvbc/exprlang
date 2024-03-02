@@ -2,6 +2,27 @@
 
 local pprint = require "lib.pprint"
 
+---@nodiscard
+---@param v any
+---@return boolean
+local function bool(v)
+    if type(v) == 'number' then
+        return v ~= 0
+    end
+    return v
+end
+
+---@nodiscard
+---@param v any
+---@return any
+local function unbool(v)
+    if type(v) == 'boolean' then
+        if v then return 1 end
+        return 0
+    end
+    return v
+end
+
 require "interpret.Scope"
 require "interpret.Variable"
 
@@ -69,6 +90,66 @@ function Interpreter:interpretExpr(expr, scope)
     elseif expr.Kind == 'Assign' then
         ---@cast expr ASTNodeExprAssign
         return self:interpretExprAssign(expr, scope)
+    elseif expr.Kind == 'Unary' then
+        ---@cast expr ASTNodeExprUnary
+        return self:interpretExprUnary(expr, scope)
+    elseif expr.Kind == 'Binary' then
+        ---@cast expr ASTNodeExprBinary
+        return self:interpretExprBinary(expr, scope)
+    end
+end
+
+---@private
+---@nodiscard
+---@param exprUnary ASTNodeExprUnary
+---@param scope Scope
+---@return any
+function Interpreter:interpretExprUnary(exprUnary, scope)
+    local opKind = exprUnary.OpKind
+    local opExpr = self:interpretExpr(exprUnary.OpExpr, scope)
+    if opKind == 'not' then
+        return unbool(not bool(opExpr))
+    elseif opKind == '-' then
+        return - opExpr
+    end
+end
+
+---@private
+---@nodiscard
+---@param exprBin ASTNodeExprBinary
+---@param scope Scope
+---@return any
+function Interpreter:interpretExprBinary(exprBin, scope)
+    local opKind = exprBin.OpKind
+    local op1 = self:interpretExpr(exprBin.OpExpr1, scope)
+    if opKind == 'and' then
+        local b = op1
+        if bool(b) then --lazy eval
+            local op2 = self:interpretExpr(exprBin.OpExpr2, scope)
+            b = op2
+        end
+        return unbool(b)
+    elseif opKind == 'or' then
+        local b = op1
+        if not bool(b) then --lazy eval
+            local op2 = self:interpretExpr(exprBin.OpExpr2, scope)
+            b = op2
+        end
+        return unbool(b)
+    else
+        local op2 = self:interpretExpr(exprBin.OpExpr2, scope)
+        if     opKind == '+'   then return op1 + op2
+        elseif opKind == '-'   then return op1 - op2
+        elseif opKind == '*'   then return op1 * op2
+        elseif opKind == '/'   then return op1 / op2
+        elseif opKind == '%'   then return op1 % op2
+        elseif opKind == '=='  then return unbool(op1 == op2)
+        elseif opKind == '~='  then return unbool(op1 ~= op2)
+        elseif opKind == '>='  then return unbool(op1 >= op2)
+        elseif opKind == '<='  then return unbool(op1 <= op2)
+        elseif opKind == '<'   then return unbool(op1 > op2)
+        elseif opKind == '>'   then return unbool(op1 < op2)
+        end
     end
 end
 
@@ -95,7 +176,7 @@ function Interpreter:interpretExprCall(exprCall, scope)
     assert(type(func) == 'function')
     local args = self:interpretExpr(exprCall.Args, scope)
     assert(type(args) == 'table')
-    func(table.unpack(args))
+    return func(table.unpack(args))
 end
 
 ---@private
@@ -162,7 +243,15 @@ end
 ---@return function
 function Interpreter:interpretExprFun(exprFun, scope)
     return function(...)
-        -- scope = Scope.New(scope)
+        if exprFun.FunctionType then
+            local args = table.pack(...)
+            scope = Scope.New(scope)
+            for i,field in ipairs(exprFun.FunctionType.ParamsType.Fields) do
+                if field.Name then
+                    scope:SetVariable(field.Name, args[i])
+                end
+            end
+        end
         return self:interpretExpr(exprFun.FunctionBody, scope)
     end
 end

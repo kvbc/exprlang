@@ -10,5 +10,6 @@ function ASTNodeExprName.New(name)
     ---@type ASTNodeExprName
     local node = ASTNodeExpr.New('Name')
     node.Name = name;
+    node.String = name
     return setmetatable(node, ASTNodeExprName)
 end
