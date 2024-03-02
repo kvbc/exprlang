@@ -60,14 +60,15 @@ local src = [[
 # print[fib[6] ]
 
 fib := fun [n num] -> num {
-    n <= 1 and 1 or fib[n-1] + fib[n-2]
+    n <= 2 and 1 or fib[n-1] + fib[n-2]
 }   
-printn := fun [n num] -> num {
-    print[n]
-    n
-}
-# print[fib[1] ]
-print[1 <= 1 and 1 or printn[999] + printn[9999] ]
+print[fib[15] ]
+
+# printn := fun [n num] -> num {
+#     print[n]
+#     n
+# }
+# print[1 <= 1 and 1 or printn[999] + printn[9999] ]
 
 ]]
 

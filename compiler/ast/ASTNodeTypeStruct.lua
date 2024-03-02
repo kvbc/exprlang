@@ -2,15 +2,14 @@
 
 ---@class ASTNodeTypeStruct : ASTNodeType
 ---@field Fields ASTNodeTypeStructField[]
-ASTNodeTypeStruct = {}
+local ASTNodeTypeStruct = {}
 ASTNodeTypeStruct.__index = ASTNodeTypeStruct
 
 ---@nodiscard
 ---@param fields ASTNodeTypeStructField[]
 ---@return ASTNodeTypeStruct
 function ASTNodeTypeStruct.New(fields)
-    ---@type ASTNodeTypeStruct
-    local node = ASTNodeType.New('struct')
+    local node = ASTNodeType.New('struct') ---@cast node ASTNodeTypeStruct
     node.Fields = fields
     node.String = "["
     for i,field in ipairs(fields) do
@@ -22,3 +21,5 @@ function ASTNodeTypeStruct.New(fields)
     node.String = node.String .. "]"
     return setmetatable(node, ASTNodeTypeStruct)
 end
+
+return ASTNodeTypeStruct

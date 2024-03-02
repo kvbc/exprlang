@@ -5,7 +5,7 @@
 ---@class ASTNodeExprUnary : ASTNodeExpr
 ---@field OpKind UnaryOpKind
 ---@field OpExpr ASTNodeExpr
-ASTNodeExprUnary = {}
+local ASTNodeExprUnary = {}
 ASTNodeExprUnary.__index = ASTNodeExprUnary
 
 ---@type UnaryOpKind[]
@@ -19,9 +19,10 @@ ASTNodeExprUnary.Ops = {
 ---@param opExpr ASTNodeExpr
 ---@return ASTNodeExprUnary
 function ASTNodeExprUnary.New(opKind, opExpr)
-    ---@type ASTNodeExprUnary
-    local node = ASTNodeExpr.New('Unary')
+    local node = ASTNodeExpr.New('Unary') ---@cast node ASTNodeExprUnary
     node.OpKind = opKind
     node.OpExpr = opExpr
     return setmetatable(node, ASTNodeExprUnary)
 end
+
+return ASTNodeExprUnary

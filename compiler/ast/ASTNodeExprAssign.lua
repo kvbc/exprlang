@@ -1,7 +1,7 @@
 ---@class ASTNodeExprAssign : ASTNodeExpr
 ---@field Name string
 ---@field Value ASTNodeExpr
-ASTNodeExprAssign = {}
+local ASTNodeExprAssign = {}
 ASTNodeExprAssign.__index = ASTNodeExprAssign
 
 ---@nodiscard
@@ -9,12 +9,11 @@ ASTNodeExprAssign.__index = ASTNodeExprAssign
 ---@param value ASTNodeExpr
 ---@return ASTNodeExprAssign
 function ASTNodeExprAssign.New(name, value)
-    ---@type ASTNodeExprAssign
-    local node = ASTNodeExpr.New('Assign')
+    local node = ASTNodeExpr.New('Assign') ---@cast node ASTNodeExprAssign
     node.Name = name
     node.Value = value
-
     node.String = ("%s = %s"):format(name, value.String)
-
     return setmetatable(node, ASTNodeExprAssign)
 end
+
+return ASTNodeExprAssign

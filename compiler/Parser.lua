@@ -6,11 +6,11 @@ require "ast.ASTNodeExprBlock"
 require "ast.ASTNodeExprName"
 require "ast.ASTNodeExprDef"
 require "ast.ASTNodeExprCall"
-require "ast.ASTNodeExprUnary"
-require "ast.ASTNodeExprBinary"
-require "ast.ASTNodeExprAssign"
+local ASTNodeExprUnary = require "ast.ASTNodeExprUnary"
+local ASTNodeExprBinary = require "ast.ASTNodeExprBinary"
+local ASTNodeExprAssign = require "ast.ASTNodeExprAssign"
 require "ast.ASTNodeType"
-require "ast.ASTNodeTypeStruct"
+local ASTNodeTypeStruct = require "ast.ASTNodeTypeStruct"
 require "ast.ASTNodeTypeFunction"
 require "ast.ASTNodeExprLiteral"
 require "ast.ASTNodeExprLiteralNumber"
@@ -132,11 +132,9 @@ function Parser:tryParseExpr(prevBinOpPriority)
                 expr = ASTNodeExprName.New(name)
             end
         end
-        if expr then
-            return self:tryParseExprBinary(expr, prevBinOpPriority)
-                or self:tryParseExprCall(expr)
-                or expr
-        end
+        expr = expr and self:tryParseExprCall(expr) or expr
+        expr = expr and self:tryParseExprBinary(expr, prevBinOpPriority) or expr
+        return expr
     end)
 end
 
@@ -200,6 +198,7 @@ function Parser:tryParseExprBinary(expr, prevPriority)
         end
 
         local priority = ASTNodeExprBinary.OpPriority[opKind]
+        print(opKind, priority, "<", prevPriority)
         if prevPriority and priority < prevPriority then
             return
         end
