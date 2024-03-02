@@ -68,8 +68,9 @@ function Lexer:Lex()
         tryAddToken(self:tryLexStringLiteral())
         tryAddToken(self:tryLexNameOrKeyword())
         tryAddToken(self:tryLexOperator())
+        local isComment = self:tryLexComment()
 
-        if not tokenAdded then
+        if not tokenAdded and not isComment then
             local char = self:char()
             if char and not isWhitespaceChar(char) then
                 tryAddToken(Token.New(
@@ -258,4 +259,21 @@ function Lexer:tryLexOperator()
             op
         )
     end
+end
+
+---@private
+---@return boolean # is comment
+function Lexer:tryLexComment()
+    if self:char() == '#' then
+        local startSourcePos = self:sourcePos()
+        self:advance()
+        while self:char() do -- not EOF
+            if self:sourcePos().LineNumber ~= startSourcePos.LineNumber then -- break on new-line
+                break
+            end
+            self:advance()
+        end
+        return true
+    end
+    return false
 end

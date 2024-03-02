@@ -6,6 +6,7 @@ require "ast.ASTNodeExprBlock"
 require "ast.ASTNodeExprName"
 require "ast.ASTNodeExprDef"
 require "ast.ASTNodeExprCall"
+require "ast.ASTNodeExprAssign"
 require "ast.ASTNodeType"
 require "ast.ASTNodeTypeStruct"
 require "ast.ASTNodeTypeFunction"
@@ -116,21 +117,26 @@ end
 function Parser:tryParseExpr()
     return self:backtrack(function(error)
         ---@type ASTNodeExpr?
-        local expr = nil
-        local token = self:token()
-        if token and token.Type == 'name' then
-            self:advance()
-            local name = token.Value
-            expr = self:tryParseExprDef(name) or ASTNodeExprName.New(name)
-        else
-            expr = self:tryParseExprBlock()
+        local expr = self:tryParseExprBlock()
                 or self:tryParseExprLiteral()
                 or self:tryParseExprFun()
-        end
-        if expr then
-            return self:tryParseExprCall(expr) or expr
-        end
+                or self:tryParseExprDef()
+                or self:tryParseExprAssign()
+                or self:tryParseExprName()
+        return expr and (self:tryParseExprCall(expr) or expr)
     end)
+end
+
+---@private
+---@nodiscard
+---@return ASTNodeExprName?
+function Parser:tryParseExprName()
+    local token = self:token()
+    if token and token.Type == 'name' then
+        self:advance()
+        local name = token.Value
+        return ASTNodeExprName.New(name)
+    end
 end
 
 ---@private
@@ -141,7 +147,6 @@ function Parser:tryParseExprBlock(omitBrackets)
     return self:backtrack(function(error)
         if omitBrackets or self:isToken('{') then
             local startToken = self:token()
-            assert(startToken)
 
             if not omitBrackets then
                 self:advance()
@@ -158,12 +163,17 @@ function Parser:tryParseExprBlock(omitBrackets)
                 end
             end
 
+            if omitBrackets and self:token() then -- not EOF
+                error(self:sourceRange():ToString(self.source, 'Expected <EOF>'))
+            end
+
             if omitBrackets or self:isToken('}') then
                 if not omitBrackets then
                     self:advance()
                 end
                 return ASTNodeExprBlock.New(expressions)
             else
+                assert(startToken)
                 local err = self:sourceRange():ToString(self.source, 'Expected closing bracket "}"')
                 err = err .. '\n' .. startToken.SourceRange:ToString(self.source, 'For "{"')
                 error(err)
@@ -177,11 +187,19 @@ end
     x num = 3
 --]]
 ---@private
----@param name string
 ---@nodiscard
 ---@return ASTNodeExprDef?
-function Parser:tryParseExprDef(name)
+function Parser:tryParseExprDef()
     return self:backtrack(function(error)
+        local token = self:token()
+        local name
+        if token and token.Type == 'name' then
+            name = token.Value
+            self:advance()
+        else
+            return
+        end
+
         ---@type ASTNodeType?
         local type = nil
     
@@ -207,6 +225,35 @@ function Parser:tryParseExprDef(name)
                 error(self:sourceRange():ToString(self.source, 'Expected expression'))
             end
         end
+    end)
+end
+
+--[[
+    a = 3
+]]
+---@private
+---@nodiscard
+---@return ASTNodeExprAssign?
+function Parser:tryParseExprAssign()
+    return self:backtrack(function (error)
+        local token = self:token()
+        if not(token and token.Type == 'name') then
+            return
+        end
+        local name = token.Value
+        self:advance()
+    
+        if not self:isToken('=') then
+            return
+        end
+        self:advance()
+
+        local exprValue = self:tryParseExpr()
+        if not exprValue then
+            return error(self:sourceRange():ToString(self.source, "Expected value expression"))
+        end
+
+        return ASTNodeExprAssign.New(name, exprValue)
     end)
 end
 

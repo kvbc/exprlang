@@ -5,6 +5,7 @@
 ---| 'Literal'
 ---| 'Name'
 ---| 'Fun'
+---| 'Assign'
 
 ---@class ASTNodeExpr : ASTNode
 ---@field Kind ASTNodeExprKind

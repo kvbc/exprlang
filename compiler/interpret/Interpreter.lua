@@ -66,6 +66,9 @@ function Interpreter:interpretExpr(expr, scope)
     elseif expr.Kind == 'Fun' then
         ---@cast expr ASTNodeExprFun
         return self:interpretExprFun(expr, scope)
+    elseif expr.Kind == 'Assign' then
+        ---@cast expr ASTNodeExprAssign
+        return self:interpretExprAssign(expr, scope)
     end
 end
 
@@ -103,6 +106,17 @@ function Interpreter:interpretExprDef(exprDef, scope)
     local value = self:interpretExpr(exprDef.Expr, scope)
     local var = Variable.New(name, value)
     table.insert(scope.Variables, var)
+end
+
+---@private
+---@param exprAssign ASTNodeExprAssign
+---@param scope Scope
+function Interpreter:interpretExprAssign(exprAssign, scope)
+    for _,var in ipairs(scope.Variables) do
+        if var.Name == exprAssign.Name then
+            var.Value = self:interpretExpr(exprAssign.Value, scope)
+        end
+    end
 end
 
 ---@private
