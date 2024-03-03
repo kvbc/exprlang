@@ -1,6 +1,6 @@
 sort := import "test/sort"
 
-arr := [1, 2, 3, 4, 5]
+arr := [234, 43, 55, 63, 5, 6, 235, 547]
 print arr
 sort arr
 print arr
