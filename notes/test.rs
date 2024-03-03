@@ -83,3 +83,40 @@ add := [a num, b num] -> num (a + b)
 
 b bool = true
 n num = num b
+
+A := []
+A.DoubleX = [a] -> [] a.x = a.x * 2
+a := [x: 3]
+A.DoubleX[a]
+
+a:DoubleX[]
+
+table := [
+    func: [self, a, b] -> [] {
+        self + a + b
+    }
+]
+table.func[1, 2, 3]
+1:func[2, 3]
+
+a := [x: 3] ref A
+a:DoubleX[]
+
+x := 3 ref Number
+s := x:tostring[]
+
+macro Num := [n] -> [] { n for Number }
+x := Num[3]
+
+(1 ref table):func[2, 3]
+
+
+
+A := []
+A.aMethod := [self] -> [] ...
+
+B := [] ref A
+B.bMethod := [self] -> [] ...
+
+b := [] ref B
+b:aMethod()

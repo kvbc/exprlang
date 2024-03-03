@@ -116,22 +116,45 @@ end
 ---@private
 ---@nodiscard
 ---@param prevBinOpPriority integer?
+---@param parseAssignAndDef boolean?
+---@param isGrouped boolean?
 ---@return ASTNodeExpr?
-function Parser:tryParseExpr(prevBinOpPriority)
+function Parser:tryParseExpr(prevBinOpPriority, parseAssignAndDef, isGrouped)
     return self:backtrack(function(error)
+        local function skipNewline()
+            if isGrouped and self:isToken('\n') then
+                self:advance()
+            end
+        end
+        
+        skipNewline()
+
         ---@type ASTNodeExpr?
         local expr = self:tryParseGroupedExpr()
                 or self:tryParseExprBlock()
-                or self:tryParseExprDef()
+                or (parseAssignAndDef ~= false and self:tryParseExprDef())
                 or self:tryParseExprUnary()
                 or self:tryParseExprCast()
                 or self:tryParseExprLiteral()
                 or self:tryParseExprName()
 
         if expr then
-            expr = self:tryParseExprBinary(expr, prevBinOpPriority) or expr
-            expr = self:tryParseExprCall(expr) or expr
-            expr = self:tryParseExprAssign(expr) or expr
+            ---@type ASTNodeExpr?
+            while true do
+                local expandExpr = nil
+                skipNewline()
+                expandExpr = self:tryParseExprBinary(expandExpr or expr, prevBinOpPriority) or expandExpr
+                skipNewline()
+                expandExpr = self:tryParseExprCall(expandExpr or expr) or expandExpr
+                skipNewline()
+                expandExpr = (parseAssignAndDef ~= false and self:tryParseExprAssign(expandExpr or expr)) or expandExpr
+                skipNewline()
+                if expandExpr then
+                    expr = expandExpr
+                else
+                    break
+                end
+            end
         end
 
         return expr
@@ -179,7 +202,7 @@ function Parser:tryParseExprCast()
 
         local expr = self:tryParseExpr()
         if not expr then
-            return error(self:sourceRange():ToString(self.source, 'Expected cast expression'))
+            return --error(self:sourceRange():ToString(self.source, 'Expected cast expression'))
         end
 
         return ASTNodeExprCast.New(
@@ -199,8 +222,8 @@ function Parser:tryParseGroupedExpr()
     return self:backtrack(function (error)
         if self:isToken('(') then
             self:advance()
-    
-            local expr = self:tryParseExpr()
+
+            local expr = self:tryParseExpr(nil, nil, true)
             if not expr then
                 return error(self:sourceRange():ToString(self.source, 'Expected expression'))
             end
@@ -271,13 +294,13 @@ function Parser:tryParseExprBinary(expr, prevPriority)
         end
 
         local priority = ASTNodeExprBinary.OpPriority[opKind]
-        if prevPriority and priority.Left <= prevPriority then
+        if prevPriority and priority.Left < prevPriority then
             return
         end
 
-        ---@type ASTNodeExpr?
-        local opExpr2 = (opKind == '.') and self:tryParseExprName() or nil
-        opExpr2 = opExpr2 or self:tryParseExpr(priority.Right)
+        ---@type (ASTNodeExpr | string)?
+        local opExpr2 = (opKind == '.' or opKind == ':') and self:tryParseName() or nil
+        opExpr2 = opExpr2 or self:tryParseExpr(priority.Right, false)
         if not opExpr2 then
             return error(self:sourceRange():ToString(self.source, "Expected second operand expression"))
         end
@@ -308,6 +331,16 @@ function Parser:tryParseExprBlock(omitBrackets)
             ---@type ASTNodeExpr[]
             local expressions = {}
             while true do
+                if not self:token() or self:isToken('}') then -- EOF or }
+                    break
+                end
+                
+                if self:isToken('\n') then
+                    self:advance()
+                elseif #expressions > 0 then
+                    return error(self:sourceRange():ToString(self.source, 'Expected new-line'))
+                end
+
                 local expr = self:tryParseExpr()
                 if expr then
                     table.insert(expressions, expr)
@@ -316,9 +349,9 @@ function Parser:tryParseExprBlock(omitBrackets)
                 end
             end
 
-            if omitBrackets and self:token() then -- not EOF
-                error(self:sourceRange():ToString(self.source, 'Expected <EOF>'))
-            end
+            -- if omitBrackets and self:token() then -- not EOF
+            --     error(self:sourceRange():ToString(self.source, 'Expected <EOF>'))
+            -- end
 
             local endToken = self:token()
             if omitBrackets or (endToken and endToken:Is('}')) then
@@ -470,14 +503,14 @@ function Parser:tryParseExprLiteralStruct()
                 end
                 
                 if not name then
-                    name = self:tryParseExpr()
+                    name = self:tryParseExpr(nil, false)
                 end
 
                 ---@type ASTNodeExpr?
                 local expr
                 if name then
                     local nextToken = self:token(nextTokenOfs)
-                    if nextToken and nextToken:Is(':') then
+                    if nextToken and nextToken:Is('=') then
                         self:advance()
                         if token and token.Type == 'name' then
                             self:advance()
@@ -490,7 +523,7 @@ function Parser:tryParseExprLiteralStruct()
                     end
                 end
 
-                expr = expr or self:tryParseExpr()
+                expr = expr or self:tryParseExpr(nil, false)
                 if expr then
                     ---@type ASTNodeExprLiteralStructField
                     local field = {
@@ -567,7 +600,7 @@ function Parser:tryParseExprCall(expr)
 
         local func = expr
 
-        local args = self:tryParseExprLiteralStruct()
+        local args = self:tryParseExprLiteralStruct() or self:tryParseExpr()
         if not args then return end
 
         return ASTNodeExprCall.New(

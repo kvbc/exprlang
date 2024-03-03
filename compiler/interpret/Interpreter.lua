@@ -31,6 +31,7 @@ require "interpret.Variable"
 
 ---@class Interpreter
 ---@field private astExprBlock ASTNodeExprBlock
+---@field private refKey table
 ---@field Errors string[]
 ---@field GlobalScope Scope
 Interpreter = {}
@@ -45,7 +46,8 @@ function Interpreter.New(astExprBlock, filename)
     local interpreter = {
         astExprBlock = astExprBlock;
         Errors = {};
-        GlobalScope = Scope.New()
+        GlobalScope = Scope.New();
+        refKey = {}
     }
 
     local function gPrint(...)
@@ -80,7 +82,11 @@ function Interpreter.New(astExprBlock, filename)
         gPrint("[ERROR] ", ...)
     end
 
+    ---@param filename string
     local function gImport(filename)
+        if filename:sub(#filename - 2) ~= '.ry' then
+            filename = filename .. '.ry'
+        end
         local f = io.open(filename, "r")
         if not f then
             return gError(('Could not import file "%s"'):format(filename))
@@ -178,31 +184,56 @@ end
 function Interpreter:interpretExprBinary(exprBin, scope)
     local opKind = exprBin.OpKind
     local op1 = self:interpretExpr(exprBin.OpExpr1, scope)
+    local opExpr2 = exprBin.OpExpr2
     if opKind == 'and' then
+        ---@cast opExpr2 ASTNodeExpr
         local b = op1
         if bool(b) then --lazy eval
-            local op2 = self:interpretExpr(exprBin.OpExpr2, scope)
+            local op2 = self:interpretExpr(opExpr2, scope)
             b = op2
         end
         return unbool(b)
     elseif opKind == 'or' then
+        ---@cast opExpr2 ASTNodeExpr
         local b = op1
         if not bool(b) then --lazy eval
-            local op2 = self:interpretExpr(exprBin.OpExpr2, scope)
+            local op2 = self:interpretExpr(opExpr2, scope)
             b = op2
         end
         return unbool(b)
-    elseif opKind == '.' then
+    elseif opKind == '.' or opKind == ':' then
         assert(op1 ~= nil)
-        if exprBin.OpExpr2.Kind == 'Name' then
-            local exprName = exprBin.OpExpr2 ---@cast exprName ASTNodeExprName
-            return op1[exprName.Name], op1, exprName.Name
-        else
-            local op2 = self:interpretExpr(exprBin.OpExpr2, scope)
-            return op1[op2], op1, op2
+        local prevOp1 = op1
+        local v, table, key
+        while op1 do
+            if opKind == ':' then
+                op1 = debug.getmetatable(op1) and debug.getmetatable(op1).ref
+            end
+            if not op1 then
+                break
+            end
+            if type(exprBin.OpExpr2) == 'string' then
+                local name = exprBin.OpExpr2
+                v, table, key = op1[name], op1, name
+            else
+                ---@cast opExpr2 ASTNodeExpr
+                local op2 = self:interpretExpr(opExpr2, scope)
+                v, table, key = op1[op2], op1, op2
+            end
+            if opKind == '.' then
+                break
+            end
         end
+        if opKind == ':' and type(v) == 'function' then
+            local oldv = v
+            v = function(...)
+                return oldv(prevOp1, ...)
+            end
+        end
+        return v, table, key
     else
-        local op2 = self:interpretExpr(exprBin.OpExpr2, scope)
+        ---@cast opExpr2 ASTNodeExpr
+        local op2 = self:interpretExpr(opExpr2, scope)
         if     opKind == '+'   then return op1 + op2
         elseif opKind == '-'   then return op1 - op2
         elseif opKind == '*'   then return op1 * op2
@@ -214,6 +245,8 @@ function Interpreter:interpretExprBinary(exprBin, scope)
         elseif opKind == '<='  then return unbool(op1 <= op2)
         elseif opKind == '<'   then return unbool(op1 > op2)
         elseif opKind == '>'   then return unbool(op1 < op2)
+        elseif opKind == 'ref' then
+            return debug.setmetatable(op1, { ref = op2 })
         end
     end
 end
@@ -239,9 +272,22 @@ end
 function Interpreter:interpretExprCall(exprCall, scope)
     local func = self:interpretExpr(exprCall.Func, scope)
     assert(type(func) == 'function')
+    local exprArgs = exprCall.Args
     local args = self:interpretExpr(exprCall.Args, scope)
-    assert(type(args) == 'table')
 
+    local pack = false
+    if exprCall.Args.Kind ~= 'Literal' then 
+        pack = true
+    else
+        ---@cast exprArgs ASTNodeExprLiteral
+        if exprArgs.LiteralKind ~= 'Struct' then
+            pack = true
+        end
+    end
+    if pack then
+        args = { args }
+    end
+    
     -- before calling debug functions
     self:updateDebugGlobals(exprCall.SourceRange)
 

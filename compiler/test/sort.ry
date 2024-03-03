@@ -1,0 +1,28 @@
+# this kinda hurts to look at
+# but it will get better with the introduction of macros
+
+[arr auto] -> auto {
+	for2 := [i num, j num] -> auto (
+		j <= len[arr] - i - 1) and ((
+			arr.(j - 1) > arr.(j) and {
+				temp := arr.(j)
+				arr.(j) = arr.(j - 1)
+				arr.(j - 1) = temp
+			} or 1
+		) or for2[i, j + 1]
+	)
+	for1 := [i num] -> auto i <= len[arr] and (for2[i, 2] or for1[i + 1])
+	for1[1]
+}
+
+# function bblSort(arr) {
+#     for (var i = 0; i < arr.length; i++) {
+#         for (var j = 0; j < (arr.length - i - 1); j++) {
+#             if (arr[j] > arr[j + 1]) {
+#                 var temp = arr[j]
+#                 arr[j] = arr[j + 1]
+#                 arr[j + 1] = temp
+#             }
+#         }
+#     }
+# }

@@ -1,10 +1,12 @@
-func := [] -> [] {
-	print["whats up!"]
-}
+arr := [5, 4, 3, 2, 1]
+i := 1
+j := 2
 
-secret := 9194
+print arr
+print arr.(j)
 
-[
-	func: func,
-	secret: secret
-]
+temp := arr.(j)
+arr.(j) = arr.(j + 1)
+arr.(j + 1) = temp
+
+print arr

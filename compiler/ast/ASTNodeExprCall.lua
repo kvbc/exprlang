@@ -2,13 +2,13 @@ local ASTNodeExpr = require "ast.ASTNodeExpr" ()
 
 ---@class ASTNodeExprCall : ASTNodeExpr
 ---@field Func ASTNodeExpr
----@field Args ASTNodeExprLiteralStruct
+---@field Args ASTNodeExpr
 local ASTNodeExprCall = setmetatable({}, ASTNodeExpr)
 ASTNodeExprCall.__index = ASTNodeExprCall
 
 ---@nodiscard
 ---@param func ASTNodeExpr
----@param args ASTNodeExprLiteralStruct
+---@param args ASTNodeExpr
 ---@param sourceRange SourceRange
 ---@return ASTNodeExprCall
 function ASTNodeExprCall.New(func, args, sourceRange)
@@ -16,7 +16,7 @@ function ASTNodeExprCall.New(func, args, sourceRange)
 
     node.Func = func;
     node.Args = args;
-    node.String = func.String .. args.String
+    node.String = func.String .. ' ' .. args.String
 
     return setmetatable(node, ASTNodeExprCall)
 end

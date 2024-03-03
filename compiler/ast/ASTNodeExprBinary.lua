@@ -15,6 +15,8 @@ local ASTNodeExpr = require "ast.ASTNodeExpr" ()
 ---| '>'
 ---| '<'
 ---| '.'
+---| ':'
+---| 'ref'
 
 ---@alias BinOpPriority integer | {Left: integer; Right: integer}
 ---@nodiscard
@@ -31,7 +33,7 @@ end
 ---@class ASTNodeExprBinary : ASTNodeExpr
 ---@field OpKind BinOpKind
 ---@field OpExpr1 ASTNodeExpr
----@field OpExpr2 ASTNodeExpr
+---@field OpExpr2 ASTNodeExpr | string
 local ASTNodeExprBinary = setmetatable({}, ASTNodeExpr)
 ASTNodeExprBinary.__index = ASTNodeExprBinary
 
@@ -39,20 +41,23 @@ ASTNodeExprBinary.__index = ASTNodeExprBinary
 ASTNodeExprBinary.Ops = {
     '+', '-', '*', '/', '%',
     '==', '~=', '>=', '<=', '>', '<',
-    '.',
+    '.', 'ref', ':',
     'and', 'or'
 }
 
 ---@type { [BinOpKind]: BinOpPriority }
 ASTNodeExprBinary.OpPriority = {
-    ["."] = priority(6, 7), -- left-assoc
+    ["."] = priority(8, 9), -- left-assoc
+    [":"] = priority(8, 9), -- left-assoc
 
-    ['*'] = priority(5);
-    ['/'] = priority(5);
-    ['%'] = priority(5);
+    ['*'] = priority(7);
+    ['/'] = priority(7);
+    ['%'] = priority(7);
     
-    ['+'] = priority(4);
-    ['-'] = priority(4);
+    ['+'] = priority(6);
+    ['-'] = priority(6);
+
+    ['ref'] = priority(4, 5); -- left-assoc
 
     ['=='] = priority(3);
     ['~='] = priority(3);
@@ -69,7 +74,7 @@ ASTNodeExprBinary.OpPriority = {
 ---@nodiscard
 ---@param opKind BinOpKind
 ---@param opExpr1 ASTNodeExpr
----@param opExpr2 ASTNodeExpr
+---@param opExpr2 ASTNodeExpr | string
 ---@param sourceRange SourceRange
 ---@return ASTNodeExprBinary
 function ASTNodeExprBinary.New(opKind, opExpr1, opExpr2, sourceRange)

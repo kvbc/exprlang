@@ -27,6 +27,7 @@ local function isKeyword(str)
         or str == 'or'
         or str == 'and'
         or str == 'auto'
+        or str == 'ref'
 end
 
 ---@class Lexer
@@ -71,14 +72,27 @@ function Lexer:Lex()
 
         if not tokenAdded and not isComment then
             local char = self:char()
-            if char and not isWhitespaceChar(char) then
+            local prevSourcePos = self:sourcePos()
+
+            if char and isWhitespaceChar(char) then
+                char = nil
+            end
+
+            self:advance()
+
+            if self:sourcePos().LineNumber ~= prevSourcePos.LineNumber then
+                if tokens[#tokens] and not tokens[#tokens]:Is('\n') then -- dont multiple nl
+                    char = '\n'
+                end
+            end
+
+            if char then
                 tryAddToken(Token.New(
                     'character',
-                    SourceRange.New(self:sourcePos()),
-                    self:char()
+                    SourceRange.New(prevSourcePos),
+                    char
                 ))
             end
-            self:advance()
         end
     end
 
@@ -208,15 +222,23 @@ end
 ---@return Token?
 function Lexer:tryLexNameOrKeyword()
     ---@param ch string?
-    local function isNameChar(ch)
+    local function isStartNameChar(ch)
         if not ch then return false end
         assert(#ch == 1)
         return (ch >= 'a' and ch <= 'z')
             or (ch >= 'A' and ch <= 'Z')
             or  ch == '_'
     end
+    
+    ---@param ch string?
+    local function isNameChar(ch)
+        if not ch then return false end
+        return isStartNameChar(ch)
+            or (ch >= '0' and ch <= '9')
+    end
+    
 
-    if isNameChar(self:char()) then
+    if isStartNameChar(self:char()) then
         local startSourceIndex = self.SourceIndex
         self:advance()
         while isNameChar(self:char()) do
