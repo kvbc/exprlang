@@ -120,3 +120,9 @@ B.bMethod := [self] -> [] ...
 
 b := [] ref B
 b:aMethod()
+
+
+# idk
+log := [prefix num, ...args num] -> [] {
+
+}
