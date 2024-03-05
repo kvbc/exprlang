@@ -1,0 +1,1 @@
+lua54 main.lua & lua main.lua

@@ -89,8 +89,8 @@ function Lexer:Lex()
             if char then
                 tryAddToken(Token.New(
                     'character',
-                    SourceRange.New(prevSourcePos),
-                    char
+                    char,
+                    SourceRange.New(prevSourcePos)
                 ))
             end
         end
@@ -188,7 +188,7 @@ function Lexer:tryLexNumberLiteral(allowDot)
         local startSourcePos = SourcePos.FromIndex(self.Source, startSourceIndex)
         local endSourcePos = SourcePos.FromIndex(self.Source, endSourceIndex)
         local sourceRange = SourceRange.New(startSourcePos, endSourcePos)
-        return Token.New('number literal', sourceRange, number)
+        return Token.New('number literal', number, sourceRange)
     end
 end
 
@@ -208,7 +208,7 @@ function Lexer:tryLexStringLiteral()
             local startSourcePos = SourcePos.FromIndex(self.Source, startSourceIndex)
             local endSourcePos = SourcePos.FromIndex(self.Source, endSourceIndex)
             local sourceRange = SourceRange.New(startSourcePos, endSourcePos)
-            return Token.New('string literal', sourceRange, string)
+            return Token.New('string literal', string, sourceRange)
         else
             local startSourcePos = SourcePos.FromIndex(self.Source, startSourceIndex)
             local msg = startSourcePos:ToString(self.Source, "Unterminated string literal")
@@ -256,7 +256,7 @@ function Lexer:tryLexNameOrKeyword()
         local startSourcePos = SourcePos.FromIndex(self.Source, startSourceIndex)
         local endSourcePos = SourcePos.FromIndex(self.Source, endSourceIndex)
         local sourceRange = SourceRange.New(startSourcePos, endSourcePos)
-        return Token.New(tokenType, sourceRange, nameOrKeyword)
+        return Token.New(tokenType, nameOrKeyword, sourceRange)
     end
 end
 
@@ -276,8 +276,8 @@ function Lexer:tryLexOperator()
         self:advance()
         return Token.New(
             'operator',
-            SourceRange.New(startSourcePos, endSourcePos),
-            op
+            op,
+            SourceRange.New(startSourcePos, endSourcePos)
         )
     end
 end
@@ -289,7 +289,8 @@ function Lexer:tryLexComment()
         local startSourcePos = self:sourcePos()
         self:advance()
         while self:char() do -- not EOF
-            if self:sourcePos().LineNumber ~= startSourcePos.LineNumber then -- break on new-line
+            local nextSourcePos = SourcePos.FromIndex(self.Source, self.SourceIndex + 1)
+            if nextSourcePos.LineNumber ~= startSourcePos.LineNumber then -- break on next new-line
                 break
             end
             self:advance()

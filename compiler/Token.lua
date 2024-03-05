@@ -15,9 +15,9 @@ Token.__index = Token
 
 ---@nodiscard
 ---@param type TokenType
----@param sourceRange SourceRange
 ---@param value any
-function Token.New(type, sourceRange, value)
+---@param sourceRange SourceRange
+function Token.New(type, value, sourceRange)
     ---@type Token
     return setmetatable({
         Type = type;
@@ -35,4 +35,18 @@ function Token:Is(value)
         compareValue = '"' .. compareValue .. '"'
     end
     return value == compareValue
+end
+
+---@nodiscard
+---@return string
+function Token:ToString()
+    local value = self.Value
+    if value == '\n' then
+        value = '\\n'
+    end
+    return ("%s(%s) @ (%d:%d):(%d:%d)"):format(
+        self.Type, value,
+        self.SourceRange.StartPos.LineNumber, self.SourceRange.StartPos.Column,
+        self.SourceRange.EndPos.LineNumber, self.SourceRange.EndPos.Column
+    )
 end

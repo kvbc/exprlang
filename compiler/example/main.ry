@@ -1,4 +1,4 @@
-sort := import "test/sort"
+sort := import "example/sort"
 
 arr := [234, 43, 55, 63, 5, 6, 235, 547]
 print arr
