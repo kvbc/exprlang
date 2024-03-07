@@ -1,0 +1,11 @@
+search := [arr num, el num, i num] -> num {
+	i = i or 1
+	i <= len[arr] and (
+		arr.(i) == el and i or search[arr, el, i + 1]
+	) 
+}
+
+arr := [6, 7, 8, 9, 10]
+print search[arr, 9]
+
+# actually works, wtf ?!
