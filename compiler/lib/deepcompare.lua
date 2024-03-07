@@ -1,4 +1,4 @@
-return function(tbl1, tbl2)
+local function deepcompare(tbl1, tbl2)
 	if tbl1 == tbl2 then
 		return true
 	elseif type(tbl1) == "table" and type(tbl2) == "table" then
@@ -31,3 +31,4 @@ return function(tbl1, tbl2)
 
 	return false
 end
+return deepcompare
