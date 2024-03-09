@@ -3,24 +3,10 @@ require "SourcePos"
 require "SourceRange"
 require "Lexer"
 require "Token"
+local LexerTests = require "test.lexer.LexerTests"
+local LexerTest = require "test.lexer.LexerTest"
 local deepcompare = require "lib.deepcompare"
 local dedent = require "lib.dedent"
-
-local red = '\27[31m'
-local green = '\27[32m'
-local yellow = '\27[33m'
-local clear = '\27[0m'
-
----@nodiscard
----@param tokens Token[]
----@return string
-local function tokensToString(tokens)
-    local str = "\n|"
-    for _,token in ipairs(tokens) do
-        str = str .. '\n| ' .. token:ToString()
-    end
-    return str .. '\n|'
-end
 
 ---@nodiscard
 ---@param type TokenType
@@ -31,56 +17,18 @@ local function newToken(type, value)
     return Token.New(type, value, SourceRange.New(SourcePos.New(1, 1)))
 end
 
-local testNum = 0
-local testsFailedNum = 0
-local testsSuccessNum = 0
+local lexerTests = LexerTests.New()
+
 ---@param name string
 ---@param sourceCode string
----@param expectedTokens (Token[])? if no tokens expected, an error is expected
-local function test(name, sourceCode, expectedTokens)
-    testNum = testNum + 1
-
-    local source = Source.New(sourceCode)
-    local lexer = Lexer.New(source)
-    local tokens = lexer:Lex()
-
-    local hasErrors = #lexer.Errors > 0
-    local ok = (not expectedTokens and hasErrors) or (expectedTokens and #tokens == #expectedTokens and not hasErrors)
-    if ok and expectedTokens then
-        for i = 1, #tokens do
-            local tk1 = tokens[i]
-            local tk2 = expectedTokens[i]
-            if tk1.Type ~= tk2.Type or not deepcompare(tk1.Value, tk2.Value) then
-                ok = false
-                break
-            end
-        end
+---@param expectedTokens Token[]?
+local function addTest(name, sourceCode, expectedTokens)
+    local expectErrors = false
+    if expectedTokens == nil then
+        expectedTokens = {}
+        expectErrors = true
     end
-
-    if not ok then
-        -- test failed
-        testsFailedNum = testsFailedNum + 1
-        print(red .. ('[%02d] Test failed: "%s"'):format(testNum, name))
-        print(yellow .. "Source: " .. ('\n\n' .. sourceCode .. '\n'):gsub('\n', '\n| '))
-        if not expectedTokens then
-            print(yellow .. "Expected errors, got none")
-        end
-        if expectedTokens then
-            print("Expected: " .. tokensToString(expectedTokens))
-            print("Got: " .. tokensToString(tokens))
-        end
-        if hasErrors then
-            print("Errors: ")
-            for _, error in ipairs(lexer.Errors) do
-                print(error)
-            end
-        end
-    else
-        -- test succeeded
-        testsSuccessNum = testsSuccessNum + 1
-        print(green .. ('[%02d] Test succeeded: "%s" %s'):format(testNum, name, not expectedTokens and "(errored)" or ""))
-    end
-    io.write(clear)
+    lexerTests:Add(LexerTest.New(name, sourceCode, expectedTokens, expectErrors))
 end
 
 --[[
@@ -89,12 +37,12 @@ end
 --
 --]]
 
-test(
+addTest(
     "empty source",
     "",
     {}
 )
-test(
+addTest(
     "multiple new-lines become one", dedent
     [[
         name_1
@@ -114,12 +62,12 @@ test(
 -- Comments
 --
 
-test(
+addTest(
     "just comment",
     "# this is just a comment",
     {}
 )
-test(
+addTest(
     "comment right after name", dedent
     [[
         name_1 # cool comment
@@ -131,7 +79,7 @@ test(
         newToken('name', 'name_2'),
     }
 )
-test(
+addTest(
     "comment in comment", dedent
     [[
         name_1
@@ -144,7 +92,7 @@ test(
         newToken('name', 'name_2')
     }
 )
-test(
+addTest(
     "comment right after comment", dedent
     [[
         name_1
@@ -164,7 +112,7 @@ test(
 -- keywords
 --
 
-test(
+addTest(
     "keywords", dedent
     [[
         num not or and auto ref
@@ -183,7 +131,7 @@ test(
 -- operators
 --
 
-test(
+addTest(
     "operators", dedent
     [[
         == ~= >= <= -> :=
@@ -202,7 +150,7 @@ test(
 -- name
 --
 
-test(
+addTest(
     "name", dedent
     [[
         _0123456789abcdefghijklmnopqrstuvwxyz9876543210_
@@ -216,7 +164,7 @@ test(
 -- number literal
 --
 
-test(
+addTest(
     "integers", dedent
     [[
         0 1 135 9999 0.1 1.3 123.657
@@ -231,7 +179,7 @@ test(
         newToken('number literal', 123.657) 
     }
 )
-test(
+addTest(
     "integer unexpected dot", dedent
     [[
         123.456.789
@@ -242,16 +190,16 @@ test(
 -- string literal
 --
 
-test(
+addTest(
     'string literal', dedent
     [[
-        "this is a test"
+        "this is a addTest"
     ]],
     {
-        newToken('string literal', 'this is a test')
+        newToken('string literal', 'this is a addTest')
     }
 )
-test(
+addTest(
     'unterminated string literal', dedent
     [[
         "i am unclo-
@@ -262,7 +210,7 @@ test(
 -- all
 --
 
-test(
+addTest(
     'mixed', dedent
     [[
         x := 13 + 15.67
@@ -295,8 +243,4 @@ test(
 --
 --]]
 
-if testsFailedNum == 0 then
-    print(green .. ("[%02d/%02d] All tests succeeded! (100%% success rate)"):format(testNum, testNum) .. clear)
-else
-    print(red .. ("[%02d/%02d] %d test(s) failed! (%.0f%% success rate)"):format(testsSuccessNum, testNum, testsFailedNum, testsSuccessNum / testNum * 100) .. clear)
-end
+lexerTests:Test()

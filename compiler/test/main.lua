@@ -1,4 +1,4 @@
 print("Testing Lexer ...")
-dofile "test/testLexer.lua"
+dofile "test/lexer/main.lua"
 print("Testing Parser ...")
-dofile "test/testParser.lua"
+dofile "test/parser/main.lua"

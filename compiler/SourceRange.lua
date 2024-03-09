@@ -21,6 +21,18 @@ function SourceRange.New(startPos, endPos)
 end
 
 ---@nodiscard
+---@param startLn integer
+---@param startCol integer
+---@param endLn integer
+---@param endCol integer
+---@return SourceRange
+function SourceRange.From(startLn, startCol, endLn, endCol)
+    local startPos = SourcePos.New(startLn, startCol)
+    local endPos = SourcePos.New(endLn, endCol)
+    return SourceRange.New(startPos, endPos)
+end
+
+---@nodiscard
 ---@param startRange SourceRange
 ---@param endRange SourceRange
 ---@return SourceRange

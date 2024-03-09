@@ -1,1 +1,1 @@
-lua54 test/test.lua & lua test/test.lua
+lua54 test/main.lua & lua test/main.lua

@@ -298,16 +298,28 @@ function Parser:tryParseExprBinary(expr, prevPriority)
             return
         end
 
-        ---@type (ASTNodeExpr | string)?
-        local opExpr2 = (opKind == '.' or opKind == ':') and self:tryParseName() or nil
+        ---@type (ASTNodeExpr | string)?, Token?
+        local opExpr2, nameToken
+        if opKind == '.' or opKind == ':' then
+            opExpr2, nameToken = self:tryParseName()
+        end
         opExpr2 = opExpr2 or self:tryParseExpr(priority.Right, false)
         if not opExpr2 then
             return error(self:sourceRange():ToString(self.source, "Expected second operand expression"))
         end
-        
+
+        ---@type SourceRange
+        local endSourceRange
+        if type(opExpr2) == 'string' then
+            endSourceRange = assert(nameToken).SourceRange
+        else
+            endSourceRange = opExpr2.SourceRange
+        end
+        assert(endSourceRange)
+
         local newExpr = ASTNodeExprBinary.New(
             opKind, opExpr1, opExpr2,
-            SourceRange.FromRanges(opExpr1.SourceRange, opExpr2.SourceRange)
+            SourceRange.FromRanges(opExpr1.SourceRange, endSourceRange)
         )
 
         return self:tryParseExprBinary(newExpr) or newExpr
