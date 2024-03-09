@@ -31,7 +31,6 @@ function ParserTests.New()
             io.write(Colors.Yellow)
             local astDiff = tablechanges(testResult.AST, test.ExpectedAST)
             print("AST Diff: " .. astToString(astDiff))
-            -- FIXME: expected and got is switched ?
             print("Expected: " .. astToString(test.ExpectedAST))
             print("Got: " .. astToString(testResult.AST))
             io.write(Colors.Clear)

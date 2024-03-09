@@ -318,7 +318,7 @@ function Parser:tryParseExprBinary(expr, prevPriority)
         assert(endSourceRange)
 
         local newExpr = ASTNodeExprBinary.New(
-            opKind, opExpr1, opExpr2,
+            opExpr1, opKind, opExpr2,
             SourceRange.FromRanges(opExpr1.SourceRange, endSourceRange)
         )
 
@@ -578,19 +578,12 @@ function Parser:tryParseExprLiteral()
     return self:backtrack(function(error)
         local token = self:token()
         if token then
-            local startSourceRange = self:sourceRange()
             if token.Type == 'number literal' then
                 self:advance()
-                return ASTNodeExprLiteralNumber.New(
-                    token.Value,
-                    SourceRange.FromRanges(startSourceRange, self:sourceRange())
-                )
+                return ASTNodeExprLiteralNumber.New(token.Value, token.SourceRange)
             elseif token.Type == 'string literal' then
                 self:advance()
-                return ASTNodeExprLiteralString.New(
-                    token.Value,
-                    SourceRange.FromRanges(startSourceRange, self:sourceRange())
-                )
+                return ASTNodeExprLiteralString.New(token.Value, token.SourceRange)
             end
             return self:tryParseExprLiteralStruct()
         end
