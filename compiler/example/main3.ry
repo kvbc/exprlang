@@ -1,13 +1,13 @@
 # cond := 0
 # cond and (print "yes" or 1) or print "no"
 
-else := [expr num] -> num {}
+else := [expr num] -> num { expr }
 if := [cond num] -> num {
 	(
 		cond
-		and ([expr num] -> num {
-			[expr num] -> num {
-				[] -> num {}
+		and ([expr1 num] -> num {
+			[expr2 num] -> num {
+				[] -> num { expr1 }
 			}
 		})
 		or ([] -> num {
@@ -32,3 +32,6 @@ if x == 5 {
 	print "NOT"
 	print "5"
 }
+
+y := if (x == 5) (1) else (2)
+print y

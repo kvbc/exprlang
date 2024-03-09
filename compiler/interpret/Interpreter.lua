@@ -59,7 +59,6 @@ function Interpreter.New(astExprBlock, filename)
         )
         io.write(("%s | "):format(prebarStr))
         for i,arg in ipairs(args) do
-            arg = Interpreter.interpretExpr(interpreter, arg, interpreter.GlobalScope)
             io.write(
                 i ~= 1 and ', ' or '',
                 (pprint.pformat(arg)
@@ -73,7 +72,6 @@ function Interpreter.New(astExprBlock, filename)
     end
 
     local function gLen(v)
-        v = Interpreter.interpretExpr(interpreter, v, interpreter.GlobalScope)
         if type(v) == 'number' then
             v = tostring(v)
         end
@@ -85,7 +83,6 @@ function Interpreter.New(astExprBlock, filename)
     end
     
     local function gImport(filename)
-        filename = Interpreter.interpretExpr(interpreter, filename, interpreter.GlobalScope)
         if filename:sub(#filename - 2) ~= '.ry' then
             filename = filename .. '.ry'
         end
@@ -300,6 +297,15 @@ function Interpreter:interpretExprCall(exprCall, scope)
     
     -- before calling debug functions
     self:updateDebugGlobals(exprCall.SourceRange)
+
+    for _,gVar in ipairs(self.GlobalScope.Variables) do
+        if gVar.Value == func then
+            for i,_ in ipairs(args) do
+                args[i] = self:interpretExpr(args[i], scope)
+            end
+            break
+        end
+    end
 
     return func(table.unpack(args))
 end
