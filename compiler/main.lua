@@ -42,7 +42,7 @@ local pprint = require "lib.pprint"
 local ASTNodeExpr = require "ast.ASTNodeExpr"
 
 -- func [num] -> num = { a }
-local filename = 'example/main2.ry'
+local filename = 'example/main3.ry'
 local f = io.open(filename, "r")
 local src = "empty file"
 if f then

@@ -59,6 +59,7 @@ function Interpreter.New(astExprBlock, filename)
         )
         io.write(("%s | "):format(prebarStr))
         for i,arg in ipairs(args) do
+            arg = Interpreter.interpretExpr(interpreter, arg, interpreter.GlobalScope)
             io.write(
                 i ~= 1 and ', ' or '',
                 (pprint.pformat(arg)
@@ -72,18 +73,19 @@ function Interpreter.New(astExprBlock, filename)
     end
 
     local function gLen(v)
+        v = Interpreter.interpretExpr(interpreter, v, interpreter.GlobalScope)
         if type(v) == 'number' then
             v = tostring(v)
         end
         return #v
     end
-
+    
     local function gError(...)
         gPrint("[ERROR] ", ...)
     end
-
-    ---@param filename string
+    
     local function gImport(filename)
+        filename = Interpreter.interpretExpr(interpreter, filename, interpreter.GlobalScope)
         if filename:sub(#filename - 2) ~= '.ry' then
             filename = filename .. '.ry'
         end
@@ -150,11 +152,12 @@ function Interpreter:interpretExprCast(exprCast, scope)
     assert(exprCast.Type.Kind == 'function', 'non-function casts not implemented')
     local funcType = exprCast.Type ---@cast funcType ASTNodeTypeFunction
     return function(...)
+        ---@type ASTNodeExpr[]
         local args = table.pack(...)
         scope = Scope.New(scope)
         for i,field in ipairs(funcType.ParamsType.Fields) do
             if field.Name then
-                scope:SetVariable(field.Name, args[i])
+                scope:SetVariable(field.Name, self:interpretExpr(args[i], scope))
             end
         end
         return self:interpretExpr(exprCast.Expr, scope)
@@ -273,19 +276,26 @@ function Interpreter:interpretExprCall(exprCall, scope)
     local func = self:interpretExpr(exprCall.Func, scope)
     assert(type(func) == 'function')
     local exprArgs = exprCall.Args
-    local args = self:interpretExpr(exprCall.Args, scope)
+    ---@type ASTNodeExpr[]
+    local args = {}
+    -- local args = self:interpretExpr(exprCall.Args, scope)
 
     local pack = false
     if exprCall.Args.Kind ~= 'Literal' then 
         pack = true
     else
         ---@cast exprArgs ASTNodeExprLiteral
-        if exprArgs.LiteralKind ~= 'Struct' then
+        if exprArgs.LiteralKind == 'Struct' then
+            ---@cast exprArgs ASTNodeExprLiteralStruct
+            for _,field in ipairs(exprArgs.Fields) do
+                table.insert(args, field.Value)
+            end
+        else
             pack = true
         end
     end
     if pack then
-        args = { args }
+        args = { exprArgs }
     end
     
     -- before calling debug functions

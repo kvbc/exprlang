@@ -118,8 +118,9 @@ end
 ---@param prevBinOpPriority integer?
 ---@param parseAssignAndDef boolean?
 ---@param isGrouped boolean?
+---@param parseCall boolean?
 ---@return ASTNodeExpr?
-function Parser:tryParseExpr(prevBinOpPriority, parseAssignAndDef, isGrouped)
+function Parser:tryParseExpr(prevBinOpPriority, parseAssignAndDef, isGrouped, parseCall)
     return self:backtrack(function(error)
         local function skipNewline()
             if isGrouped and self:isToken('\n') then
@@ -145,7 +146,7 @@ function Parser:tryParseExpr(prevBinOpPriority, parseAssignAndDef, isGrouped)
                 skipNewline()
                 expandExpr = self:tryParseExprBinary(expandExpr or expr, prevBinOpPriority) or expandExpr
                 skipNewline()
-                expandExpr = self:tryParseExprCall(expandExpr or expr) or expandExpr
+                expandExpr = (parseCall ~= false and self:tryParseExprCall(expandExpr or expr)) or expandExpr
                 skipNewline()
                 expandExpr = (parseAssignAndDef ~= false and self:tryParseExprAssign(expandExpr or expr)) or expandExpr
                 skipNewline()
@@ -605,7 +606,7 @@ function Parser:tryParseExprCall(expr)
 
         local func = expr
 
-        local args = self:tryParseExprLiteralStruct() or self:tryParseExpr()
+        local args = self:tryParseExprLiteralStruct() or self:tryParseExpr(nil, nil, nil, false)
         if not args then return end
 
         return ASTNodeExprCall.New(
