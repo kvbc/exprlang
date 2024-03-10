@@ -1,9 +1,9 @@
 local deepcopy = require "lib.deepcopy"
 
 ---@class Scope
----@field Variables Variable[]
----@field UpperScope Scope?
-Scope = {}
+---@field private variables table<string, LazyValue>
+---@field private upperScope Scope?
+local Scope = {}
 Scope.__index = Scope
 
 ---@nodiscard
@@ -12,42 +12,23 @@ Scope.__index = Scope
 function Scope.New(upperScope)
     ---@type Scope
     local scope = {
-        Variables = {};
-        UpperScope = upperScope;
+        variables = {};
+        upperScope = upperScope;
     }
     return setmetatable(scope, Scope)
 end
 
 ---@param name string
----@param value any
-function Scope:SetVariable(name, value)
-    ---@param scope Scope
-    ---@return boolean
-    local function setExisting(scope)
-        for _,var in ipairs(scope.Variables) do
-            if var.Name == name then
-                var.Value = value
-                return true
-            end
-        end
-        return false
-    end
-
-    if setExisting(self) then return end
-    -- if self.UpperScope and setExisting(self.UpperScope) then return end
-
-    local var = Variable.New(name, value)
-    table.insert(self.Variables, var)
+---@param val LazyValue
+function Scope:SetVariable(name, val)
+    self.variables[name] = val
 end
 
 ---@nodiscard
 ---@param name string
----@return any
+---@return LazyValue?
 function Scope:GetVariable(name)
-    for _,var in ipairs(self.Variables) do
-        if var.Name == name then
-            return var.Value
-        end
-    end
-    return self.UpperScope and self.UpperScope:GetVariable(name)
+    return self.variables[name] or (self.upperScope and self.upperScope:GetVariable(name))
 end
+
+return Scope

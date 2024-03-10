@@ -35,14 +35,13 @@ require "Parser"
 require "Source"
 require "SourcePos"
 require "SourceRange"
-require "interpret.Interpreter"
-require "interpret.Variable" 
+local Interpreter = require "interpret.Interpreter"
 local dedent = require "lib.dedent"
 local pprint = require "lib.pprint"
 local ASTNodeExpr = require "ast.ASTNodeExpr"
 
 -- func [num] -> num = { a }
-local filename = 'example/main3.ry'
+local filename = 'example/main4.ry'
 local f = io.open(filename, "r")
 local src = "empty file"
 if f then

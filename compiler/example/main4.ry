@@ -1,0 +1,17 @@
+func := [block num] -> num {
+	[el num] -> num block
+}
+
+Array := []
+Array.forEach = [self num, func num, i num] -> num {
+	i = i or 1
+	i <= len[self] and func[self.(i)]
+	i <= len[self] and self:forEach[func, i + 1]
+}
+
+arr := [1, 2, 3] ref Array
+arr:forEach[print]
+
+arr:forEach[func {
+	print [el + 1]
+}]
