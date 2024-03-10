@@ -69,11 +69,12 @@ function Interpreter.New(filename)
     end
 
     ---@param v any
+    ---@return LazyValue
     local function gLen(v)
         if type(v) == 'number' then
             v = tostring(v)
         end
-        return #v
+        return LazyValue.New(#v)
     end
     
     ---@param ... any
@@ -82,13 +83,15 @@ function Interpreter.New(filename)
     end
     
     ---@param filename string
+    ---@return LazyValue?
     local function gImport(filename)
         if filename:sub(#filename - 2) ~= '.ry' then
             filename = filename .. '.ry'
         end
         local f = io.open(filename, "r")
         if not f then
-            return gError(('Could not import file "%s"'):format(filename))
+            gError(('Could not import file "%s"'):format(filename))
+            return
         end
         local src = f:read('a')
         f:close()
@@ -98,14 +101,15 @@ function Interpreter.New(filename)
         local parser = Parser.New(source, tokens)
         local ast = parser:Parse()
         if not ast then
-            return gError(('Could not parse file "%s"'):format(filename))
+            gError(('Could not parse file "%s"'):format(filename))
+            return
         end
         local interpreter = Interpreter.New(filename)
         return interpreter:Interpret(ast)
     end
 
     ---@nodiscard
-    ---@param func function
+    ---@param func fun(...): LazyValue
     ---@return function
     local function unlazifyFunction(func)
         ---@param ... LazyValue
@@ -134,13 +138,14 @@ end
 
 ---@param astExpr ASTNodeExpr
 ---@param scope Scope?
----@return LazyValue?
+---@return LazyValue
 function Interpreter:Interpret(astExpr, scope)
     for _,exprKind in pairs(ASTNodeExprKind) do
         if astExpr.Kind == exprKind then
             return Interpreter['interpretExpr' .. exprKind](self, astExpr, scope or self.GlobalScope)
         end
     end
+    error()
 end
 
 ---@private
@@ -159,18 +164,18 @@ function Interpreter:interpretExprCast(exprCast, scope)
     local funcType = exprCast.Type ---@cast funcType ASTNodeTypeFunction
 
     ---@param ... LazyValue
-    ---@return LazyValue
+    ---@return LazyValue?
     local function func(...)
         local args = {...}
-        return LazyValue.NewLazy(function()
-            scope = Scope.New(scope)
-            for i,field in ipairs(funcType.ParamsType.Fields) do
-                if field.Name and args[i] then
-                    scope:SetVariable(field.Name, args[i])
-                end
+
+        scope = Scope.New(scope)
+        for i,field in ipairs(funcType.ParamsType.Fields) do
+            if field.Name and args[i] then
+                scope:SetVariable(field.Name, args[i])
             end
-            return self:Interpret(exprCast.Expr, scope):GetValue()
-        end)
+        end
+
+        return self:Interpret(exprCast.Expr, scope)
     end
 
     return LazyValue.New(func)
@@ -198,7 +203,6 @@ end
 ---@param exprBin ASTNodeExprBinary
 ---@param scope Scope
 ---@return LazyValue
---TODO: fix this mess
 function Interpreter:interpretExprBinary(exprBin, scope)
     return LazyValue.NewLazy(
         --return value, index table, index key
@@ -207,36 +211,34 @@ function Interpreter:interpretExprBinary(exprBin, scope)
             local opKind = exprBin.OpKind
             local op1Lazy = self:Interpret(exprBin.OpExpr1, scope)
             local op2Expr = exprBin.OpExpr2
-            
-            local function op2Lazy()
-                assert(type(op2Expr) ~= 'string')
-                return self:Interpret(op2Expr, scope)
-            end
-
-            local function op2Value()
-                if type(op2Expr) == 'string' then
-                    return op2Expr
-                end
-                return op2Lazy():GetValue()
-            end
 
             assert(op1Lazy)
 
             if opKind == 'and' then
+                ---@cast op2Expr ASTNodeExpr
                 local b = op1Lazy:GetValue()
                 if bool(b) then --lazy eval
-                    b = op2Value()
+                    b = self:Interpret(op2Expr, scope):GetValue()
                 end
                 return unbool(b)
             elseif opKind == 'or' then
-                local b = op1:GetValue()
+                ---@cast op2Expr ASTNodeExpr
+                local b = op1Lazy:GetValue()
                 if not bool(b) then --lazy eval
-                    b = op2Value()
+                    b = self:Interpret(op2Expr, scope):GetValue()
                 end
                 return unbool(b)
             elseif opKind == '.' or opKind == ':' then
                 local v, table, key
-                local firstOp1Lazy = op1Lazy
+                local orgOp1Lazy = op1Lazy
+
+                if type(op2Expr == 'string') then
+                    key = op2Expr
+                else
+                    ---@cast op2Expr ASTNodeExpr
+                    key = self:Interpret(op2Expr, scope):GetValue()
+                end
+
                 while op1Lazy do
                     if opKind == ':' then
                         op1Lazy = debug.getmetatable(op1Lazy) and debug.getmetatable(op1Lazy).ref
@@ -245,25 +247,29 @@ function Interpreter:interpretExprBinary(exprBin, scope)
                         break
                     end
 
-                    local key = op2Value()
-                    v, table, key = op1[key], op1, key
+                    local op1Val = op1Lazy:GetValue()
+                    v, table = op1Val[key], op1Val
 
                     if opKind == '.' then
                         break
                     end
                 end
                 if opKind == ':' and type(v) == 'function' then
-                    local oldv = v
+                    local oldfunc = v
                     v = function(...)
-                        return oldv(firstOp1Lazy, ...)
+                        return oldfunc(orgOp1Lazy, ...)
                     end
                 end
                 return v, table, key
             else
+                assert(type(op2Expr) ~= 'string')
+                local op2Lazy = self:Interpret(op2Expr, scope)
+                assert(op2Lazy)
                 if opKind == 'ref' then
-                    return debug.setmetatable(op1Lazy, { ref = op2Lazy() })
+                    return debug.setmetatable(op1Lazy, { ref = op2Lazy })
                 else
-                    local op2 = op2Value()
+                    local op1 = op1Lazy:GetValue()
+                    local op2 = op2Lazy:GetValue()
                     if     opKind == '+'   then return op1 + op2
                     elseif opKind == '-'   then return op1 - op2
                     elseif opKind == '*'   then return op1 * op2
@@ -286,137 +292,146 @@ end
 ---@nodiscard
 ---@param exprBlock ASTNodeExprBlock
 ---@param scope Scope
----@return any
+---@return LazyValue
 function Interpreter:interpretExprBlock(exprBlock, scope)
-    scope = Scope.New(scope)
-    for i,expr in ipairs(exprBlock.Expressions) do
-        local value = self:Interpret(expr, scope)
-        if i == #exprBlock.Expressions then -- last expression
-            return value
+    return LazyValue.NewLazy(function ()
+        scope = Scope.New(scope)
+        for i,expr in ipairs(exprBlock.Expressions) do
+            local lazy = self:Interpret(expr, scope)
+            local value = lazy:GetValue()
+            if i == #exprBlock.Expressions then -- last expression
+                return value
+            end
         end
-    end
+        return nil
+    end)
 end
 
+---@nodiscard
 ---@private
 ---@param exprCall ASTNodeExprCall
 ---@param scope Scope
+---@return LazyValue
 function Interpreter:interpretExprCall(exprCall, scope)
-    local func = self:Interpret(exprCall.Func, scope)
-    assert(type(func) == 'function')
-    local exprArgs = exprCall.Args
-    ---@type ASTNodeExpr[]
-    local args = {}
-    -- local args = self:interpretExpr(exprCall.Args, scope)
-
-    local pack = false
-    if exprCall.Args.Kind ~= 'Literal' then 
-        pack = true
-    else
-        ---@cast exprArgs ASTNodeExprLiteral
-        if exprArgs.LiteralKind == 'Struct' then
-            ---@cast exprArgs ASTNodeExprLiteralStruct
-            for _,field in ipairs(exprArgs.Fields) do
-                table.insert(args, field.Value)
-            end
-        else
-            pack = true
-        end
-    end
-    if pack then
-        args = { exprArgs }
-    end
+    return LazyValue.NewLazy(function ()
+        local func = self:Interpret(exprCall.Func, scope)
+        assert(type(func) == 'function')
+        
+        local argsExpr = exprCall.Args
+        
+        ---@type LazyValue[]
+        local args = {}
     
-    -- before calling debug functions
-    self:updateDebugGlobals(exprCall.SourceRange)
-
-    for i,_ in ipairs(args) do
-        local e = args[i]
-        args[i] = {
-            Expr = e;
-            Scope = scope;
-        }
-    end
-
-    for _,gVar in ipairs(self.GlobalScope.Variables) do
-        if gVar.Value == func then
-            for i,_ in ipairs(args) do
-                args[i] = self:Interpret(args[i].Expr, args[i].Scope)
+        local pack = false
+        if exprCall.Args.Kind ~= 'Literal' then 
+            pack = true
+        else
+            ---@cast argsExpr ASTNodeExprLiteral
+            if argsExpr.LiteralKind == 'Struct' then
+                ---@cast argsExpr ASTNodeExprLiteralStruct
+                for _,field in ipairs(argsExpr.Fields) do
+                    local lazy = self:Interpret(field.Value, scope)
+                    table.insert(args, lazy)
+                end
+            else
+                pack = true
             end
-            break
         end
-    end
-
-    return func(table.unpack(args))
+        if pack then
+            local argsLazy = self:Interpret(argsExpr, scope)
+            args = { argsLazy }
+        end
+        
+        -- before calling debug functions
+        self:updateDebugGlobals(exprCall.SourceRange)
+    
+        return func(table.unpack(args)):GetValue()
+    end)
 end
 
+---@nodiscard
 ---@private
 ---@param exprDef ASTNodeExprDef
 ---@param scope Scope
+---@return LazyValue
 function Interpreter:interpretExprDef(exprDef, scope)
-    local name = exprDef.Name
-    local value = self:Interpret(exprDef.Expr, scope)
-    scope:SetVariable(name, value)
+    return LazyValue.NewLazy(function ()
+        local name = exprDef.Name
+        local lazyValue = self:Interpret(exprDef.Expr, scope)
+        scope:SetVariable(name, lazyValue)
+        return nil
+    end)
 end
 
+---@nodiscard
 ---@private
 ---@param exprAssign ASTNodeExprAssign
 ---@param scope Scope
+---@return LazyValue
 function Interpreter:interpretExprAssign(exprAssign, scope)
-    if exprAssign.LValue.Kind == 'Name' then
-        scope:SetVariable(
-            exprAssign.LValue.Name,
-            self:Interpret(exprAssign.Value, scope)
-        )
-    elseif exprAssign.LValue.Kind == 'Binary' then
-        local _, obj, key = self:Interpret(exprAssign.LValue, scope)
-        assert(key)
-        obj[key] = self:Interpret(exprAssign.Value, scope)
-    end
+    return LazyValue.NewLazy(function ()
+        if exprAssign.LValue.Kind == 'Name' then
+            scope:SetVariable(
+                exprAssign.LValue.Name,
+                self:Interpret(exprAssign.Value, scope)
+            )
+        elseif exprAssign.LValue.Kind == 'Binary' then
+            local _, obj, key = self:Interpret(exprAssign.LValue, scope):GetValue()
+            assert(key)
+            obj[key] = self:Interpret(exprAssign.Value, scope)
+        end
+        return nil
+    end)
 end
 
 ---@private
 ---@nodiscard
 ---@param exprLit ASTNodeExprLiteral
 ---@param scope Scope
----@return any
+---@return LazyValue
 function Interpreter:interpretExprLiteral(exprLit, scope)
-    if exprLit.LiteralKind == 'Number' then
-        ---@cast exprLit ASTNodeExprLiteralNumber
-        return exprLit.Value
-    elseif exprLit.LiteralKind == 'String' then
-        ---@cast exprLit ASTNodeExprLiteralString
-        return exprLit.Value
-    elseif exprLit.LiteralKind == 'Struct' then
-        ---@cast exprLit ASTNodeExprLiteralStruct
-        local values = {}
-        for _,field in ipairs(exprLit.Fields) do
-            local value = self:Interpret(field.Value, scope)
-            local key = field.Name
-            if key then
-                if type(key) == 'string' then
-                    values[key] = value
+    return LazyValue.NewLazy(function ()
+        if exprLit.LiteralKind == 'Number' then
+            ---@cast exprLit ASTNodeExprLiteralNumber
+            return exprLit.Value
+        elseif exprLit.LiteralKind == 'String' then
+            ---@cast exprLit ASTNodeExprLiteralString
+            return exprLit.Value
+        elseif exprLit.LiteralKind == 'Struct' then
+            ---@cast exprLit ASTNodeExprLiteralStruct
+            local values = {}
+            for _,field in ipairs(exprLit.Fields) do
+                local value = self:Interpret(field.Value, scope)
+                local key = field.Name
+                if key then
+                    if type(key) == 'string' then
+                        values[key] = value
+                    else
+                        local keyValue = self:Interpret(key, scope)
+                        assert(keyValue ~= nil)
+                        values[keyValue] = value
+                    end
                 else
-                    local keyValue = self:Interpret(key, scope)
-                    assert(keyValue ~= nil)
-                    values[keyValue] = value
+                    table.insert(values, value)
                 end
-            else
-                table.insert(values, value)
             end
+            return values
         end
-        return values
-    end
+    end)
 end
 
 ---@private
 ---@nodiscard
 ---@param exprName ASTNodeExprName
 ---@param scope Scope
----@return Variable
+---@return LazyValue
 function Interpreter:interpretExprName(exprName, scope)
-    -- before getting debug vars
-    self:updateDebugGlobals(exprName.SourceRange)
-    return scope:GetVariable(exprName.Name)
+    return LazyValue.NewLazy(function ()
+        -- before getting debug vars
+        self:updateDebugGlobals(exprName.SourceRange)
+        
+        return scope:GetVariable(exprName.Name):GetValue()
+    end)
 end
 
 return Interpreter
